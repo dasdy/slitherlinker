@@ -47,7 +47,7 @@ def find_puzzle(image, debug=False):
     dilated = cv2.dilate(thresh, kernel=np.ones((5, 5), np.uint8), iterations=4)
     if debug:
         print_img(dilated)
-    cnts = cv2.findContours(dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cv2.findContours(~dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
     # initialize a contour that corresponds to the puzzle outline
@@ -79,8 +79,8 @@ def find_puzzle(image, debug=False):
     if debug:
         print_img(warped)
 
-    puzzle = crop_img(puzzle, 0.9)
-    warped = crop_img(warped, 0.9)
+    puzzle = crop_img(puzzle, 0.97)
+    warped = crop_img(warped, 0.97)
 
     if debug:
         print_img(warped)
@@ -115,7 +115,8 @@ def prepare_digit(cell, cell_w, cell_h, debug):
     sub_img = cell
     if debug:
         print_img(sub_img)
-    sub_img = cv2.GaussianBlur(sub_img, (11, 11), 2)
+    if np.sum(sub_img) > 0:
+        sub_img = cv2.GaussianBlur(sub_img, (11, 11), 2)
     sub_img = ~(sub_img > 128)
     if debug:
         print_img(sub_img.astype(np.uint8))
@@ -125,7 +126,10 @@ def prepare_digit(cell, cell_w, cell_h, debug):
         sub_img = translate_to_com(sub_img, com)
     if debug:
         print_img(sub_img.astype(np.uint8))
-    sub_img = cv2.resize(sub_img.astype(np.uint8), dsize=(28, 28))
+    if np.sum(sub_img) == 0:
+        sub_img = np.zeros((28, 28), dtype=np.uint8)
+    else:
+        sub_img = cv2.resize(sub_img.astype(np.uint8), dsize=(28, 28))
     if debug:
         print_img(sub_img)
     sub_img = sub_img.reshape((28, 28, 1))
@@ -133,11 +137,12 @@ def prepare_digit(cell, cell_w, cell_h, debug):
 
 
 def get_not_empty_cells(image, x_size, y_size, debug):
-    w, h = image.shape
+    h, w = image.shape
+    print(f'Image shape: {image.shape}')
     cell_w, cell_h = int(w / x_size), int(h / y_size)
     indices = []
-    for i in range(x_size):
-        for j in range(y_size):
+    for i in range(y_size):
+        for j in range(x_size):
             sub_img = image[cell_w * i : cell_w * (i + 1), cell_h * j : cell_h * (j + 1)]
             cleaned = prepare_digit(sub_img, cell_w, cell_h, debug)
             if np.sum(cleaned) > 0:
@@ -166,12 +171,12 @@ def get_model():
 
 def recognize_digits(warped, non_empty, x_size, y_size, debug):
     model = get_model()
-    w, h = warped.shape
+    h, w = warped.shape
     cell_w, cell_h = int(w / x_size), int(h / y_size)
     res = []
     for i, j in non_empty:
         sub_img = warped[cell_w * i : cell_w * (i + 1), cell_h * j : cell_h * (j + 1)]
-        sub_img = prepare_digit(sub_img, cell_w, cell_h, False)
+        sub_img = prepare_digit(sub_img, cell_w, cell_h, debug)
         if debug:
             print_img(sub_img / 255.0, figsize=None)
         pred_vector = model.predict(np.array([sub_img > 0]))[0]
@@ -202,17 +207,17 @@ def detect(img, x_size, y_size, debug):
     print(f'Not empty cells at: {non_empty}')
     print(f'Digits are: {detected_digits}')
 
-    result = np.ones((x_size, y_size), dtype=np.int8) * -1
+    result = np.ones((y_size, x_size), dtype=np.int8) * -1
 
     for (i, j), d in zip(non_empty, detected_digits):
         result[i][j] = d
 
     print(result)
 
-    for i in range(x_size):
-        for j in range(y_size):
+    for i in range(y_size):
+        for j in range(x_size):
             if result[i][j] < 0:
-                print(' ', end=' ')
+                print('.', end=' ')
             else:
                 print(f'{result[i][j]}', end=' ')
         print()
