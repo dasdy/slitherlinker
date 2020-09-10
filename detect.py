@@ -5,6 +5,8 @@ import cv2
 import imutils
 from imutils.perspective import four_point_transform
 import numpy as np
+from PIL import Image
+from PIL import ImageDraw
 from scipy.ndimage.measurements import center_of_mass
 from skimage.morphology import remove_small_objects
 import tensorflow as tf
@@ -47,7 +49,7 @@ def find_puzzle(image, debug=False):
     dilated = cv2.dilate(thresh, kernel=np.ones((5, 5), np.uint8), iterations=4)
     if debug:
         print_img(dilated)
-    cnts = cv2.findContours(~dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cv2.findContours(dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
     # initialize a contour that corresponds to the puzzle outline
@@ -79,8 +81,8 @@ def find_puzzle(image, debug=False):
     if debug:
         print_img(warped)
 
-    puzzle = crop_img(puzzle, 0.97)
-    warped = crop_img(warped, 0.97)
+    puzzle = crop_img(puzzle, 0.9)
+    warped = crop_img(warped, 0.9)
 
     if debug:
         print_img(warped)
@@ -120,7 +122,7 @@ def prepare_digit(cell, cell_w, cell_h, debug):
     sub_img = ~(sub_img > 128)
     if debug:
         print_img(sub_img.astype(np.uint8))
-    sub_img = remove_small_objects(sub_img, min_size=(cell_w * cell_h * 0.01)) * 255
+    sub_img = remove_small_objects(sub_img, min_size=(cell_w * cell_h * 0.04)) * 255
     if np.sum(sub_img) > 0:
         com = center_of_mass(sub_img)
         sub_img = translate_to_com(sub_img, com)
@@ -143,7 +145,7 @@ def get_not_empty_cells(image, x_size, y_size, debug):
     indices = []
     for i in range(y_size):
         for j in range(x_size):
-            sub_img = image[cell_w * i : cell_w * (i + 1), cell_h * j : cell_h * (j + 1)]
+            sub_img = image[cell_h * i : cell_h * (i + 1), cell_w * j : cell_w * (j + 1)]
             cleaned = prepare_digit(sub_img, cell_w, cell_h, debug)
             if np.sum(cleaned) > 0:
                 indices.append((i, j))
@@ -175,7 +177,7 @@ def recognize_digits(warped, non_empty, x_size, y_size, debug):
     cell_w, cell_h = int(w / x_size), int(h / y_size)
     res = []
     for i, j in non_empty:
-        sub_img = warped[cell_w * i : cell_w * (i + 1), cell_h * j : cell_h * (j + 1)]
+        sub_img = warped[cell_h * i : cell_h * (i + 1), cell_w * j : cell_w * (j + 1)]
         sub_img = prepare_digit(sub_img, cell_w, cell_h, debug)
         if debug:
             print_img(sub_img / 255.0, figsize=None)
@@ -187,6 +189,24 @@ def recognize_digits(warped, non_empty, x_size, y_size, debug):
         res.append(prediction)
 
     return res
+
+
+def draw_grid_puzzle(img, x_size, y_size):
+    h, w = img.shape
+    cell_w, cell_h = int(w / x_size), int(h / y_size)
+    im = Image.fromarray(img.copy())
+    draw = ImageDraw.Draw(im)
+
+    for x in range(0, w, cell_w):
+
+        line = ((x, 0), (x, h))
+        draw.line(line, fill=128)
+
+    for x in range(0, h, cell_h):
+        line = ((0, x), (w, x))
+        draw.line(line, fill=128)
+    del draw
+    im.show()
 
 
 @click.command()
@@ -201,6 +221,8 @@ def detect(img, x_size, y_size, debug):
         print_img(im)
 
     puzzle, warped = find_puzzle(im, debug)
+    if debug:
+        draw_grid_puzzle(warped, x_size, y_size)
     non_empty = get_not_empty_cells(warped, x_size, y_size, False)
 
     detected_digits = recognize_digits(warped, non_empty, x_size, y_size, debug)
