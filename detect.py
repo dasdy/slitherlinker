@@ -2,7 +2,6 @@ import os
 
 import click
 import cv2
-import imutils
 from imutils.perspective import four_point_transform
 import numpy as np
 from PIL import Image
@@ -35,7 +34,7 @@ def crop_img(img, scale=1.0):
     return img_cropped
 
 
-def find_puzzle(image, debug=False):
+def find_puzzle(image, zoom, debug=False):
     # convert the image to grayscale and blur it slightly
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (41, 41), 4)
@@ -49,21 +48,24 @@ def find_puzzle(image, debug=False):
     dilated = cv2.dilate(thresh, kernel=np.ones((5, 5), np.uint8), iterations=4)
     if debug:
         print_img(dilated)
-    cnts = cv2.findContours(dilated.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    cnts = imutils.grab_contours(cnts)
-    cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
+    cnts = cv2.findContours(dilated.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    cnts_bak = cnts
+    # cnts = imutils.grab_contours(cnts)
+    cnts_sorted = sorted(zip(cnts[0], cnts[1][0]), key=lambda x: cv2.contourArea(x[0]), reverse=True)
     # initialize a contour that corresponds to the puzzle outline
     puzzleCnt = []
+    puzzleHs = []
     # loop over the contours
-    for c in cnts:
+    for c, hierarchy in cnts_sorted:
         # approximate the contour
         peri = cv2.arcLength(c, True)
         approx = cv2.approxPolyDP(c, 0.02 * peri, True)
         # if our approximated contour has four points, then we can
         # assume we have found the outline of the puzzle
-        if len(approx) == 4:
+        if len(approx) == 4 and hierarchy[3] >= 0:
             puzzleCnt.append(approx)
-            break
+            puzzleHs.append(hierarchy)
+            # break
         # if the puzzle contour is empty then our script could not find
     # the outline of the Sudoku puzzle so raise an error
     if puzzleCnt is None:
@@ -74,15 +76,15 @@ def find_puzzle(image, debug=False):
         # draw the contour of the puzzle on the image and then display
         # it to our screen for visualization/debugging purposes
         output = image.copy()
-        cv2.drawContours(output, puzzleCnt, -1, (0, 255, 0), 2)
+        cv2.drawContours(output, puzzleCnt, -1, (0, 255, 0), 4)
         print_img(output)
     puzzle = four_point_transform(image, puzzleCnt[0].reshape(4, 2))
     warped = four_point_transform(gray, puzzleCnt[0].reshape(4, 2))
     if debug:
         print_img(warped)
 
-    puzzle = crop_img(puzzle, 0.9)
-    warped = crop_img(warped, 0.9)
+    puzzle = crop_img(puzzle, zoom)
+    warped = crop_img(warped, zoom)
 
     if debug:
         print_img(warped)
@@ -113,32 +115,40 @@ def translate_to_com(im, com):
     return im3
 
 
-def prepare_digit(cell, cell_w, cell_h, debug):
+def prepare_digit(cell, cell_w, cell_h, debug, small_treshold, gray_treshold):
     sub_img = cell
     if debug:
+        print('gray image:')
         print_img(sub_img)
     if np.sum(sub_img) > 0:
         sub_img = cv2.GaussianBlur(sub_img, (11, 11), 2)
-    sub_img = ~(sub_img > 128)
+
+        if debug:
+            print('blurred image:')
+            print_img(sub_img)
+    sub_img = sub_img > gray_treshold
     if debug:
-        print_img(sub_img.astype(np.uint8))
-    sub_img = remove_small_objects(sub_img, min_size=(cell_w * cell_h * 0.04)) * 255
+        print('bool image:')
+        print_img(sub_img.astype(np.uint8) * 255)
+    sub_img = remove_small_objects(~sub_img, min_size=(cell_w * cell_h * small_treshold)) * 255
     if np.sum(sub_img) > 0:
         com = center_of_mass(sub_img)
         sub_img = translate_to_com(sub_img, com)
     if debug:
+        print('center image:')
         print_img(sub_img.astype(np.uint8))
     if np.sum(sub_img) == 0:
         sub_img = np.zeros((28, 28), dtype=np.uint8)
     else:
         sub_img = cv2.resize(sub_img.astype(np.uint8), dsize=(28, 28))
     if debug:
+        print('resized image:')
         print_img(sub_img)
     sub_img = sub_img.reshape((28, 28, 1))
     return sub_img
 
 
-def get_not_empty_cells(image, x_size, y_size, debug):
+def get_not_empty_cells(image, x_size, y_size, debug, small_treshold, gray_treshold):
     h, w = image.shape
     print(f'Image shape: {image.shape}')
     cell_w, cell_h = int(w / x_size), int(h / y_size)
@@ -146,7 +156,7 @@ def get_not_empty_cells(image, x_size, y_size, debug):
     for i in range(y_size):
         for j in range(x_size):
             sub_img = image[cell_h * i : cell_h * (i + 1), cell_w * j : cell_w * (j + 1)]
-            cleaned = prepare_digit(sub_img, cell_w, cell_h, debug)
+            cleaned = prepare_digit(sub_img, cell_w, cell_h, debug, small_treshold, gray_treshold)
             if np.sum(cleaned) > 0:
                 indices.append((i, j))
 
@@ -171,14 +181,14 @@ def get_model():
     return model
 
 
-def recognize_digits(warped, non_empty, x_size, y_size, debug):
+def recognize_digits(warped, non_empty, x_size, y_size, debug, small_treshold, gray_treshold):
     model = get_model()
     h, w = warped.shape
     cell_w, cell_h = int(w / x_size), int(h / y_size)
     res = []
     for i, j in non_empty:
         sub_img = warped[cell_h * i : cell_h * (i + 1), cell_w * j : cell_w * (j + 1)]
-        sub_img = prepare_digit(sub_img, cell_w, cell_h, debug)
+        sub_img = prepare_digit(sub_img, cell_w, cell_h, debug, small_treshold, gray_treshold)
         if debug:
             print_img(sub_img / 255.0, figsize=None)
         pred_vector = model.predict(np.array([sub_img > 0]))[0]
@@ -214,18 +224,21 @@ def draw_grid_puzzle(img, x_size, y_size):
 @click.option('--debug', is_flag=True)
 @click.option('--x-size', type=int, default=6)
 @click.option('--y-size', type=int, default=6)
-def detect(img, x_size, y_size, debug):
+@click.option('--zoom', type=float, default=0.95)
+@click.option('--small-treshold', type=float, default=0.04)
+@click.option('--gray-treshold', type=int, default=160)
+def detect(img, x_size, y_size, debug, zoom, small_treshold, gray_treshold):
     im = cv2.imread(img)
     if debug:
         print('debug. initial image:')
         print_img(im)
 
-    puzzle, warped = find_puzzle(im, debug)
+    puzzle, warped = find_puzzle(im, zoom, debug)
     if debug:
         draw_grid_puzzle(warped, x_size, y_size)
-    non_empty = get_not_empty_cells(warped, x_size, y_size, False)
+    non_empty = get_not_empty_cells(warped, x_size, y_size, False, small_treshold, gray_treshold)
 
-    detected_digits = recognize_digits(warped, non_empty, x_size, y_size, debug)
+    detected_digits = recognize_digits(warped, non_empty, x_size, y_size, debug, small_treshold, gray_treshold)
     print(f'Not empty cells at: {non_empty}')
     print(f'Digits are: {detected_digits}')
 
