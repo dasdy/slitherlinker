@@ -1,0 +1,12 @@
+[package]
+name = "solver"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# https://crates.io/crates/cryptominisat
+# https://crates.io/crates/screwsat
+[dependencies]
+varisat = "0.2.2"
+regex = "1"
+# splr = {version = "0.16.0", features = ["incremental_solver"] }
