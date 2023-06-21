@@ -17,13 +17,13 @@ impl fmt::Display for ParseError {
 impl Error for ParseError {}
 
 fn parse_str(inp: &str) -> Result<(usize, usize, String)> {
-    let r = Regex::new(r"^(\d+)x(\d+):(.+)$").unwrap();
+    let r = Regex::new(r"^(\d+)x(\d+)(d\d+?):(.+)$").unwrap();
     let c_opt = r.captures_iter(inp).next(); 
     match c_opt {
         Some(c) => {
             let xs = c[1].parse::<usize>();
             let ys = c[2].parse::<usize>();
-            let s = String::from(&c[3]);
+            let s = String::from(&c[4]);
             Ok((xs?, ys?, s))
         },
         None => Err(Box::new(ParseError {}))

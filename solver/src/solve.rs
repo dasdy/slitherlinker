@@ -1,68 +1,81 @@
 use std::{
-    collections::{HashSet, LinkedList},
-    fmt, ops::Sub
+    collections::{HashMap, HashSet, LinkedList},
+    fmt,
+    ops::Sub,
 };
 use varisat::{CnfFormula, ExtendFormula, Lit, Solver};
 
 use crate::parse::Cell;
-use crate::puzzle::{Puzzle, Edge};
+use crate::patterns::{find_facts, Edge};
+use crate::puzzle::Puzzle;
 
 pub struct Solution {
     pub puzzle: Puzzle,
     pub edges: Vec<Edge>,
+    pub edges_pre_solve: Vec<Edge>,
+    pub facts: HashMap<usize, bool>,
+}
+
+fn _format_edges(puzzle: &Puzzle, edges: &Vec<Edge>) -> String {
+    let mut res = String::new();
+    for i in 0..puzzle.xsize {
+        // top edges
+        for j in 0..puzzle.ysize {
+            let ix = puzzle.edge_ix(i, j, true);
+            match edges[ix] {
+                Edge::Filled => res.push_str(".-"),
+                Edge::Empty => res.push_str(".x"),
+                _ => res.push_str(". "),
+            }
+        }
+        res.push_str(".\n");
+
+        // vertical edges
+        for j in 0..puzzle.ysize {
+            let ix = puzzle.edge_ix(i, j, false);
+            match edges[ix] {
+                Edge::Filled => res.push_str("|"),
+                Edge::Empty => res.push_str("x"),
+                _ => res.push_str(" "),
+            }
+
+            if puzzle.cells[i][j] >= 0 {
+                res.push_str(format!("{}", puzzle.cells[i][j]).as_str());
+            } else {
+                res.push_str(" ");
+            }
+        }
+
+        match edges[puzzle.edge_ix(i, puzzle.ysize, false)] {
+            Edge::Filled => res.push_str("|"),
+            Edge::Empty => res.push_str("x"),
+            _ => res.push_str(" "),
+        }
+
+        res.push_str("\n");
+    }
+
+    for j in 0..puzzle.ysize {
+        match edges[puzzle.edge_ix(puzzle.xsize, j, true)] {
+            Edge::Filled => res.push_str(".-"),
+            Edge::Empty => res.push_str(".x"),
+            _ => res.push_str(". "),
+        }
+    }
+    res.push_str(".\n");
+
+    res
 }
 
 impl fmt::Display for Solution {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut res = String::new();
-        for i in 0..self.puzzle.xsize {
-            // top edges
-            for j in 0..self.puzzle.ysize {
-                let ix = self.puzzle.edge_ix(i, j, true);
-                if self.edges[ix] {
-                    res.push_str(".-");
-                } else {
-                    res.push_str(". ");
-                }
-            }
-            res.push_str(".\n");
-
-            // vertical edges
-            for j in 0..self.puzzle.ysize {
-                let ix = self.puzzle.edge_ix(i, j, false);
-                if self.edges[ix] {
-                    res.push_str("|");
-                } else {
-                    res.push_str(" ");
-                }
-
-                if self.puzzle.cells[i][j] >= 0 {
-                    res.push_str(format!("{}", self.puzzle.cells[i][j]).as_str());
-                } else {
-                    res.push_str(" ");
-                }
-            }
-
-            if self.edges[self.puzzle.edge_ix(i, self.puzzle.ysize, false)] {
-                res.push_str("|");
-            } else {
-                res.push_str(" ");
-            }
-            res.push_str("\n");
-        }
-
-        for j in 0..self.puzzle.ysize {
-            if self.edges[self.puzzle.edge_ix(self.puzzle.xsize, j, true)] {
-                res.push_str(".-");
-            } else {
-                res.push_str(". ");
-            }
-        }
-        res.push_str(".\n");
-        write!(f, "{}", res)
+        let mut s0 = String::new();
+        s0.push_str(_format_edges(&self.puzzle, &self.edges_pre_solve).as_str());
+        s0.push_str("after solve:\n");
+        s0.push_str(_format_edges(&self.puzzle, &self.edges).as_str());
+        write!(f, "{}", s0.as_str())
     }
 }
-
 
 fn loop_two(a: Lit, b: Lit) -> Vec<Vec<Lit>> {
     vec![vec![a, !b], vec![!a, b]]
@@ -144,7 +157,7 @@ fn clause_three(edges: (Lit, Lit, Lit, Lit)) -> Vec<Vec<Lit>> {
     ]
 }
 
-fn cell_clauses(p: &Puzzle, formula: &mut CnfFormula) {
+fn cell_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormula) {
     for i in 0..p.xsize {
         for j in 0..p.ysize {
             let condition = p.cells[i][j];
@@ -152,6 +165,13 @@ fn cell_clauses(p: &Puzzle, formula: &mut CnfFormula) {
                 continue;
             }
             let edges = p.edges_around_cell(i, j);
+            if vec![edges.0, edges.1, edges.2, edges.3]
+                .iter()
+                .all(|i| facts.contains_key(i))
+            {
+                println!("Skipping creating clauses for {i} {j}");
+                continue;
+            }
             let lits = (
                 Lit::from_index(edges.0, true),
                 Lit::from_index(edges.1, true),
@@ -166,7 +186,7 @@ fn cell_clauses(p: &Puzzle, formula: &mut CnfFormula) {
                 _ => vec![],
             };
 
-            println!("cell ({condition} [{i}][{j}]): {:?}", v);
+            // println!("cell ({condition} [{i}][{j}]): {:?}", v);
             for c in v {
                 // formula.add_clause(c);
                 formula.add_clause(&c);
@@ -186,7 +206,7 @@ fn edge_clauses(p: &Puzzle, formula: &mut CnfFormula) {
                 _ => panic!("???"),
             };
 
-            println!("loop: {} [{i}][{j}]: {:?}", es.len(), clauses);
+            // println!("loop: {} [{i}][{j}]: {:?}", es.len(), clauses);
             for c in clauses {
                 // formula.add_clause(c);
                 formula.add_clause(&c);
@@ -200,7 +220,7 @@ fn single_loop(puzzle: &Puzzle, edges: &Vec<Edge>) -> bool {
         edges
             .iter()
             .enumerate()
-            .filter(|(_, &v)| v)
+            .filter(|(_, &v)| v == Edge::Filled)
             .map(|(i, &_)| i),
     );
     if all_edge_indices.is_empty() {
@@ -217,7 +237,7 @@ fn single_loop(puzzle: &Puzzle, edges: &Vec<Edge>) -> bool {
         let neighbors: Vec<usize> = puzzle.edges_around_edge(item);
 
         for n in neighbors {
-            if edges[n] && !visited_edges.contains(&n) {
+            if edges[n] == Edge::Filled && !visited_edges.contains(&n) {
                 queue.push_back(n);
             }
         }
@@ -225,7 +245,6 @@ fn single_loop(puzzle: &Puzzle, edges: &Vec<Edge>) -> bool {
 
     all_edge_indices.sub(&visited_edges).is_empty()
 }
-
 
 pub fn solve(grid: Vec<Vec<Cell>>) -> Option<Vec<Solution>> {
     let xsize = grid.len();
@@ -239,9 +258,21 @@ pub fn solve(grid: Vec<Vec<Cell>>) -> Option<Vec<Solution>> {
         ysize: ysize,
     };
 
+    let facts = find_facts(&p);
+    let mut base_edges = vec![Edge::Unknown; (1 + xsize) * ysize + (1 + ysize) * xsize];
+    for (&k, &v) in facts.iter() {
+        base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
+    }
+
+    println!("simplify:\n{}", _format_edges(&p, &base_edges));
+
     let mut formula = CnfFormula::new();
 
-    cell_clauses(&p, &mut formula);
+    for (&k, &v) in facts.iter() {
+        formula.add_clause(&[Lit::from_index(k, v)]);
+    }
+
+    cell_clauses(&p, &facts, &mut formula);
     edge_clauses(&p, &mut formula);
 
     let mut s = Solver::default();
@@ -249,24 +280,49 @@ pub fn solve(grid: Vec<Vec<Cell>>) -> Option<Vec<Solution>> {
 
     let mut sols = vec![];
     let mut counter = 0;
-    loop {
+    let mut last_solution = None;
+    while counter < 10000 {
         let has_solutions = s.solve().unwrap();
-        println!("attempt {counter}");
+        if counter % 500 == 0 {
+            println!("attempt {counter}");
+        }
         if has_solutions {
             let m = s.model().unwrap();
-            // println!("{:?}", m);
-            let edges: Vec<Edge> = m.iter().map(|&x| x.is_positive()).collect();
+            let edges: Vec<Edge> = m
+                .iter()
+                .map(|&x| {
+                    if x.is_positive() {
+                        Edge::Filled
+                    } else {
+                        Edge::Empty
+                    }
+                })
+                .collect();
+            let solution = Solution {
+                puzzle: p.clone(),
+                edges: edges.clone(),
+                edges_pre_solve: base_edges.clone(),
+                facts: facts.clone(),
+            };
             if single_loop(&p, &edges) {
-                sols.push(Solution {
-                    puzzle: p.clone(),
-                    edges: edges,
-                });
+                sols.push(solution);
+            } else {
+                last_solution = Some(solution);
             }
             let new_clause: Vec<Lit> = m.iter().map(|&l| !l).collect();
             s.add_clause(&new_clause);
         } else {
-            return Some(sols);
+            println!("No more solutions!");
+            break;
         }
         counter += 1;
     }
+    if sols.is_empty() {
+        println!("shiiiit son, well here's last thing:");
+        match last_solution {
+            Some(s) => sols.push(s),
+            None => println!("oh well"),
+        };
+    }
+    Some(sols)
 }

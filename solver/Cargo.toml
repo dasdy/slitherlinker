@@ -9,4 +9,5 @@ edition = "2021"
 [dependencies]
 varisat = "0.2.2"
 regex = "1"
+transpose = "0.2.2"
 # splr = {version = "0.16.0", features = ["incremental_solver"] }
