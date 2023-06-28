@@ -6,8 +6,9 @@ use std::{
 use varisat::{CnfFormula, ExtendFormula, Lit, Solver};
 
 use crate::parse::Cell;
-use crate::patterns::{find_facts, Edge};
-use crate::puzzle::Puzzle;
+use crate::patterns::find_facts;
+use crate::data::pattern::Edge;
+use crate::data::puzzle::Puzzle;
 
 pub struct Solution {
     pub puzzle: Puzzle,
@@ -23,12 +24,12 @@ fn _format_edges(puzzle: &Puzzle, edges: &Vec<Edge>) -> String {
         for j in 0..puzzle.ysize {
             let ix = puzzle.edge_ix(i, j, true);
             match edges[ix] {
-                Edge::Filled => res.push_str(".-"),
-                Edge::Empty => res.push_str(".x"),
-                _ => res.push_str(". "),
+                Edge::Filled => res.push_str(" -"),
+                Edge::Empty => res.push_str(" x"),
+                _ => res.push_str("  "),
             }
         }
-        res.push_str(".\n");
+        res.push_str(" \n");
 
         // vertical edges
         for j in 0..puzzle.ysize {
@@ -57,12 +58,12 @@ fn _format_edges(puzzle: &Puzzle, edges: &Vec<Edge>) -> String {
 
     for j in 0..puzzle.ysize {
         match edges[puzzle.edge_ix(puzzle.xsize, j, true)] {
-            Edge::Filled => res.push_str(".-"),
-            Edge::Empty => res.push_str(".x"),
-            _ => res.push_str(". "),
+            Edge::Filled => res.push_str(" -"),
+            Edge::Empty => res.push_str(" x"),
+            _ => res.push_str("  "),
         }
     }
-    res.push_str(".\n");
+    res.push_str(" \n");
 
     res
 }
@@ -169,7 +170,7 @@ fn cell_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormu
                 .iter()
                 .all(|i| facts.contains_key(i))
             {
-                println!("Skipping creating clauses for {i} {j}");
+                println!("Skipping cell clause: {condition} at [{i}][{j}]");
                 continue;
             }
             let lits = (
@@ -195,10 +196,14 @@ fn cell_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormu
     }
 }
 
-fn edge_clauses(p: &Puzzle, formula: &mut CnfFormula) {
+fn edge_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormula) {
     for i in 0..=p.xsize {
         for j in 0..=p.ysize {
             let es = p.edges_around_point(i, j);
+            if es.iter().all(|&l| facts.contains_key(&l.index())) {
+                println!("Skipping edge clauses for [{i}][{j}]");
+                continue;
+            }
             let clauses = match es.len() {
                 2 => loop_two(es[0], es[1]),
                 3 => loop_three(es[0], es[1], es[2]),
@@ -273,7 +278,7 @@ pub fn solve(grid: Vec<Vec<Cell>>) -> Option<Vec<Solution>> {
     }
 
     cell_clauses(&p, &facts, &mut formula);
-    edge_clauses(&p, &mut formula);
+    edge_clauses(&p, &facts, &mut formula);
 
     let mut s = Solver::default();
     s.add_formula(&formula);
