@@ -407,9 +407,9 @@ pub fn patterns() -> HashMap<String, PatternSolution> {
         },
         input: any_input.clone(),
         cells: [
-            [Cell::OutOfBounds, Cell::OutOfBounds, Cell::Any],
+            [Cell::OutOfBounds, Cell::OutOfBounds, Cell::OutOfBounds],
             [Cell::OutOfBounds, Cell::Three, Cell::Any],
-            [Cell::Any, Cell::Any, Cell::Any],
+            [Cell::OutOfBounds, Cell::Any, Cell::Any],
         ],
     };
 
@@ -427,9 +427,9 @@ pub fn patterns() -> HashMap<String, PatternSolution> {
         },
         input: any_input.clone(),
         cells: [
-            [Cell::OutOfBounds, Cell::OutOfBounds, Cell::Any],
+            [Cell::OutOfBounds, Cell::OutOfBounds, Cell::OutOfBounds],
             [Cell::OutOfBounds, Cell::Two, Cell::Any],
-            [Cell::Any, Cell::Any, Cell::Any],
+            [Cell::OutOfBounds, Cell::Any, Cell::Any],
         ],
     };
 
@@ -447,9 +447,9 @@ pub fn patterns() -> HashMap<String, PatternSolution> {
         },
         input: any_input.clone(),
         cells: [
-            [Cell::OutOfBounds, Cell::OutOfBounds, Cell::Any],
+            [Cell::OutOfBounds, Cell::OutOfBounds, Cell::OutOfBounds],
             [Cell::OutOfBounds, Cell::One, Cell::Any],
-            [Cell::Any, Cell::Any, Cell::Any],
+            [Cell::OutOfBounds, Cell::Any, Cell::Any],
         ],
     };
 

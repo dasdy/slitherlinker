@@ -264,6 +264,7 @@ pub fn solve(grid: Vec<Vec<Cell>>) -> Option<Vec<Solution>> {
     };
 
     let facts = find_facts(&p);
+    // let facts = HashMap::new();
     let mut base_edges = vec![Edge::Unknown; (1 + xsize) * ysize + (1 + ysize) * xsize];
     for (&k, &v) in facts.iter() {
         base_edges[k] = if v { Edge::Filled } else { Edge::Empty };

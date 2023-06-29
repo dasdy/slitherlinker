@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Cell {
     Any,
     OutOfBounds,
@@ -11,7 +11,7 @@ pub enum Cell {
     Three,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Edge {
     Any,
     OutOfBounds,
@@ -31,12 +31,13 @@ impl Edge {
         return *self == Edge::Any
             || *other == Edge::Any
             || *self == *other
-            || (*self == Edge::OutOfBounds && *other == Edge::Empty)
-            || (*self == Edge::Empty && *other == Edge::OutOfBounds);
+            // || (*self == Edge::OutOfBounds && *other == Edge::Empty)
+            // || (*self == Edge::Empty && *other == Edge::OutOfBounds)
+            ;
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Pattern {
     pub horizontals: Horizontals,
     pub verticals: Verticals,
@@ -46,7 +47,7 @@ pub type Horizontals = [[Edge; 3]; 2];
 pub type Verticals = [[Edge; 2]; 3];
 pub type CellWindow = [[Cell; 3]; 3];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PatternSolution {
     pub cells: CellWindow,
     pub input: Pattern,
@@ -56,8 +57,6 @@ pub struct PatternSolution {
 impl fmt::Display for PatternSolution {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut res = String::new();
-
-        res.push_str("=====");
         res.push_str("IN:\n");
         for i in 0..self.cells.len() {
             // verticals
@@ -68,6 +67,7 @@ impl fmt::Display for PatternSolution {
                     Cell::One => "1",
                     Cell::Two => "2",
                     Cell::Three => "3",
+                    Cell::OutOfBounds => "B",
                     _ => " ",
                 });
 
@@ -82,6 +82,7 @@ impl fmt::Display for PatternSolution {
                 Cell::One => "1",
                 Cell::Two => "2",
                 Cell::Three => "3",
+                Cell::OutOfBounds => "B",
                 _ => " ",
             });
 
@@ -111,6 +112,7 @@ impl fmt::Display for PatternSolution {
                     Cell::One => "1",
                     Cell::Two => "2",
                     Cell::Three => "3",
+                    Cell::OutOfBounds => "B",
                     _ => " ",
                 });
 
@@ -125,6 +127,7 @@ impl fmt::Display for PatternSolution {
                 Cell::One => "1",
                 Cell::Two => "2",
                 Cell::Three => "3",
+                Cell::OutOfBounds => "B",
                 _ => " ",
             });
 
@@ -144,8 +147,6 @@ impl fmt::Display for PatternSolution {
             }
             res.push_str("\n");
         }
-
-        res.push_str("=====");
 
         f.write_str(&res)
     }
@@ -240,7 +241,10 @@ impl PatternSolution {
         }
 
         let h: HashSet<PatternSolution> = HashSet::from_iter(res);
-        let r = h.iter().map(|&x| x).collect();
+        let mut r: Vec<PatternSolution> = h.iter().map(|&x| x).collect();
+
+        r.sort();
+        // let r = res.iter().map(|&x| x).collect();
         r
 
         // let r1 = self.rot90();
@@ -446,22 +450,58 @@ pub mod test {
             println!("{r}")
         }
 
-        
-
-        // assert!(rs.iter().any(|p| p.try_match(
-        //     &threes_ortho.cells,
-        //     &[
-        //         [Edge::OutOfBounds, Edge::Filled, Edge::Empty],
-        //         [Edge::OutOfBounds, Edge::Unknown, Edge::Filled],
-        //     ],
-        //     &[
-        //         [Edge::OutOfBounds, Edge::OutOfBounds],
-        //         [Edge::Filled, Edge::Unknown],
-        //         [Edge::Unknown, Edge::Empty],
-        //     ]
-        // )));
         assert!(rs.iter().any(|p| p.try_match(
             &threes_ortho.cells,
+            &[
+                [Edge::OutOfBounds, Edge::OutOfBounds, Edge::OutOfBounds],
+                [Edge::OutOfBounds, Edge::Filled, Edge::Empty],
+                
+            ],
+            &[
+                [Edge::OutOfBounds, Edge::OutOfBounds],
+                [Edge::OutOfBounds, Edge::OutOfBounds],
+                [Edge::Filled, Edge::Unknown],
+            ]
+        )));
+    }
+
+    #[test]
+    fn test_matches_three_in_corner() {
+        let threes_ortho = PatternSolution {
+            output: Pattern {
+                horizontals: [
+                    [Edge::Any, Edge::Filled, Edge::Any],
+                    [Edge::Any, Edge::Any, Edge::Any],
+                ],
+                verticals: [
+                    [Edge::Any, Edge::Any],
+                    [Edge::Filled, Edge::Any],
+                    [Edge::Any, Edge::Any],
+                ],
+            },
+            input: Pattern {
+                horizontals: [[Edge::Any; 3]; 2],
+                verticals: [[Edge::Any; 2]; 3],
+            },
+            cells: [
+                [Cell::OutOfBounds, Cell::OutOfBounds, Cell::Any],
+                [Cell::OutOfBounds, Cell::Three, Cell::Any],
+                [Cell::Any, Cell::Any, Cell::Any],
+            ],
+        };
+
+        let rs = threes_ortho.rotations();
+
+        for r in rs.clone() {
+            println!("{r}")
+        }
+
+        assert!(rs.iter().any(|p| p.try_match(
+            &[
+                [Cell::OutOfBounds, Cell::OutOfBounds, Cell::OutOfBounds],
+                [Cell::Any, Cell::Three, Cell::OutOfBounds],
+                [Cell::Any, Cell::Any, Cell::OutOfBounds],
+            ],
             &[
                 [Edge::OutOfBounds, Edge::OutOfBounds, Edge::OutOfBounds],
                 [Edge::OutOfBounds, Edge::Filled, Edge::Empty],

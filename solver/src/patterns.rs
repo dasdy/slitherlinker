@@ -36,12 +36,9 @@ pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
                 for (pname, p) in &patterns {
                     if p.try_match(&window, &horizontals, &verticals) {
                         let current_size = res.len();
-                        // if pname.starts_with("corner-1") {
-                        //     println!("yeeey")
-                        // }
                         update_things(&mut res, &mut options, &p, &puzzle, i, j);
                         if res.len() > current_size {
-                            println!("found new {pname} at {i} {j}");
+                            println!("found new {pname} at {i} {j}:\n{p}\n");
                             found_facts = true;
                         }
                     };
@@ -63,9 +60,6 @@ fn update_things(
     for i_w in 0..2 {
         for j_w in 0..3 {
             let hor_j_ix = j + j_w - 1;
-            // if edge_window_fetch(puzzle, opts, i + i_w, hor_j_ix, true) != Edge::OutOfBounds {
-            //     continue;
-            // }
             let hor_edge = pattern.output.horizontals[i_w as usize][j_w as usize];
             if hor_edge != Edge::Empty && hor_edge != Edge::Filled {
                 continue;
@@ -76,8 +70,6 @@ fn update_things(
                     res.insert(edge_ix, hor_edge == Edge::Filled);
                     opts[edge_ix] = hor_edge;
                 }
-            } else {
-                continue;
             }
         }
     }
@@ -85,9 +77,7 @@ fn update_things(
     for i_w in 0..3 {
         for j_w in 0..2 {
             let ver_ix = i + i_w - 1;
-            // if edge_window_fetch(puzzle, opts, ver_ix, j + j_w, false) != Edge::OutOfBounds {
-            //     continue;
-            // }
+
             let ver_edge = pattern.output.verticals[i_w as usize][j_w as usize];
             if ver_edge != Edge::Empty && ver_edge != Edge::Filled {
                 continue;
@@ -102,8 +92,6 @@ fn update_things(
                     res.insert(edge_ix, ver_edge == Edge::Filled);
                     opts[edge_ix] = ver_edge;
                 }
-            } else {
-                continue;
             }
         }
     }
