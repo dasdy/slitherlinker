@@ -17,7 +17,7 @@ impl fmt::Display for ParseError {
 impl Error for ParseError {}
 
 fn parse_str(inp: &str) -> Result<(usize, usize, String)> {
-    let r = Regex::new(r"^(\d+)x(\d+)(d\d+?):(.+)$").unwrap();
+    let r = Regex::new(r"^(\d+)x(\d+)(d\d+)?:(.+)$").unwrap();
     let c_opt = r.captures_iter(inp).next(); 
     match c_opt {
         Some(c) => {
