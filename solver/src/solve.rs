@@ -17,7 +17,7 @@ pub struct Solution {
     pub facts: HashMap<usize, bool>,
 }
 
-fn _format_edges(puzzle: &Puzzle, edges: &Vec<Edge>) -> String {
+fn _format_edges(puzzle: &Puzzle, edges: &[Edge]) -> String {
     let mut res = String::new();
     for i in 0..puzzle.xsize {
         // top edges
@@ -35,25 +35,25 @@ fn _format_edges(puzzle: &Puzzle, edges: &Vec<Edge>) -> String {
         for j in 0..puzzle.ysize {
             let ix = puzzle.edge_ix(i, j, false);
             match edges[ix] {
-                Edge::Filled => res.push_str("|"),
-                Edge::Empty => res.push_str("x"),
-                _ => res.push_str(" "),
+                Edge::Filled => res.push('|'),
+                Edge::Empty => res.push('x'),
+                _ => res.push(' '),
             }
 
             if puzzle.cells[i][j] >= 0 {
                 res.push_str(format!("{}", puzzle.cells[i][j]).as_str());
             } else {
-                res.push_str(" ");
+                res.push(' ');
             }
         }
 
         match edges[puzzle.edge_ix(i, puzzle.ysize, false)] {
-            Edge::Filled => res.push_str("|"),
-            Edge::Empty => res.push_str("x"),
-            _ => res.push_str(" "),
+            Edge::Filled => res.push('|'),
+            Edge::Empty => res.push('x'),
+            _ => res.push(' '),
         }
 
-        res.push_str("\n");
+        res.push('\n');
     }
 
     for j in 0..puzzle.ysize {
@@ -220,7 +220,7 @@ fn edge_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormu
     }
 }
 
-fn single_loop(puzzle: &Puzzle, edges: &Vec<Edge>) -> bool {
+fn single_loop(puzzle: &Puzzle, edges: &[Edge]) -> bool {
     let all_edge_indices: HashSet<usize> = HashSet::from_iter(
         edges
             .iter()
@@ -259,8 +259,8 @@ pub fn solve(grid: Vec<Vec<Cell>>, pre_solve: bool) -> Option<Vec<Solution>> {
 
     let p = Puzzle {
         cells: grid,
-        xsize: xsize,
-        ysize: ysize,
+        xsize,
+        ysize,
     };
 
     let facts =  if pre_solve { find_facts(&p) } else {HashMap::new()};

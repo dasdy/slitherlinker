@@ -133,7 +133,7 @@ pub fn patterns() -> HashMap<String, PatternSolution> {
                 [Edge::Any, Edge::Any],
             ],
         },
-        input: any_input.clone(),
+        input: any_input,
         cells: [
             [Cell::Any, Cell::Three, Cell::Any],
             [Cell::Any, Cell::Three, Cell::Any],
@@ -153,7 +153,7 @@ pub fn patterns() -> HashMap<String, PatternSolution> {
                 [Edge::Any, Edge::Any],
             ],
         },
-        input: any_input.clone(),
+        input: any_input,
         cells: [
             [Cell::Any, Cell::Any, Cell::Any],
             [Cell::Any, Cell::Zero, Cell::Any],
@@ -405,7 +405,7 @@ pub fn patterns() -> HashMap<String, PatternSolution> {
                 [Edge::Any, Edge::Any],
             ],
         },
-        input: any_input.clone(),
+        input: any_input,
         cells: [
             [Cell::OutOfBounds, Cell::OutOfBounds, Cell::OutOfBounds],
             [Cell::OutOfBounds, Cell::Three, Cell::Any],
@@ -425,7 +425,7 @@ pub fn patterns() -> HashMap<String, PatternSolution> {
                 [Edge::Filled, Edge::Any],
             ],
         },
-        input: any_input.clone(),
+        input: any_input,
         cells: [
             [Cell::OutOfBounds, Cell::OutOfBounds, Cell::OutOfBounds],
             [Cell::OutOfBounds, Cell::Two, Cell::Any],
@@ -445,7 +445,7 @@ pub fn patterns() -> HashMap<String, PatternSolution> {
                 [Edge::Any, Edge::Any],
             ],
         },
-        input: any_input.clone(),
+        input: any_input,
         cells: [
             [Cell::OutOfBounds, Cell::OutOfBounds, Cell::OutOfBounds],
             [Cell::OutOfBounds, Cell::One, Cell::Any],

@@ -17,7 +17,7 @@ pub fn main() {
     if args.len() > 1 {
         let puzzle_arg = &args[1];
         println!("puzzle: {puzzle_arg}");
-        grid = from_string(&puzzle_arg).unwrap();
+        grid = from_string(puzzle_arg).unwrap();
     }
 
 

@@ -19,7 +19,7 @@ pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
     let horizontals = (1 + xsize) * ysize;
     let verticals = xsize * (1 + ysize);
 
-    let mut options = vec![Edge::Unknown; (horizontals + verticals) as usize];
+    let mut options = vec![Edge::Unknown; horizontals + verticals];
 
     let mut found_facts = true;
     let mut ctr = 0;
@@ -36,7 +36,7 @@ pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
                 for (pname, p) in &patterns {
                     if p.try_match(&window, &horizontals, &verticals) {
                         let current_size = res.len();
-                        update_things(&mut res, &mut options, &p, &puzzle, i, j);
+                        update_things(&mut res, &mut options, p, puzzle, i, j);
                         if res.len() > current_size {
                             println!("found new {pname} at {i} {j}:\n{p}\n");
                             found_facts = true;
@@ -51,7 +51,7 @@ pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
 }
 fn update_things(
     res: &mut HashMap<usize, bool>,
-    opts: &mut Vec<Edge>,
+    opts: &mut [Edge],
     pattern: &PatternSolution,
     puzzle: &Puzzle,
     i: isize,
@@ -64,12 +64,10 @@ fn update_things(
             if hor_edge != Edge::Empty && hor_edge != Edge::Filled {
                 continue;
             }
-            if hor_j_ix >= 0 && (i + i_w) >= 0{
-                if (hor_j_ix as usize) < puzzle.ysize {
-                    let edge_ix = puzzle.edge_ix((i + i_w) as usize, hor_j_ix as usize, true);
-                    res.insert(edge_ix, hor_edge == Edge::Filled);
-                    opts[edge_ix] = hor_edge;
-                }
+            if hor_j_ix >= 0 && (i + i_w) >= 0 && (hor_j_ix as usize) < puzzle.ysize {
+                let edge_ix = puzzle.edge_ix((i + i_w) as usize, hor_j_ix as usize, true);
+                res.insert(edge_ix, hor_edge == Edge::Filled);
+                opts[edge_ix] = hor_edge;
             }
         }
     }
@@ -86,12 +84,10 @@ fn update_things(
                 continue;
             }
             
-            if ver_ix >= 0 && j + j_w >= 0 {
-                if (ver_ix as usize) < puzzle.xsize {
-                    let edge_ix = puzzle.edge_ix(ver_ix as usize, (j + j_w) as usize, false);
-                    res.insert(edge_ix, ver_edge == Edge::Filled);
-                    opts[edge_ix] = ver_edge;
-                }
+            if ver_ix >= 0 && j + j_w >= 0 && (ver_ix as usize) < puzzle.xsize {
+                let edge_ix = puzzle.edge_ix(ver_ix as usize, (j + j_w) as usize, false);
+                res.insert(edge_ix, ver_edge == Edge::Filled);
+                opts[edge_ix] = ver_edge;
             }
         }
     }
@@ -127,7 +123,7 @@ fn mk_window(p: &Puzzle, i: isize, j: isize) -> CellWindow {
 
 fn edge_window_fetch(
     p: &Puzzle,
-    edges: &Vec<Edge>,
+    edges: &[Edge],
     i: isize,
     j: isize,
     is_horizontal: bool,
@@ -135,10 +131,10 @@ fn edge_window_fetch(
     if i < 0 || j < 0 || i as usize >= p.xsize || j as usize >= p.ysize {
         return Edge::OutOfBounds;
     }
-    return edges[p.edge_ix(i as usize, j as usize, is_horizontal)];
+    edges[p.edge_ix(i as usize, j as usize, is_horizontal)]
 }
 
-fn mk_edge_hor_window(p: &Puzzle, edges: &Vec<Edge>, i: isize, j: isize) -> Horizontals {
+fn mk_edge_hor_window(p: &Puzzle, edges: &[Edge], i: isize, j: isize) -> Horizontals {
     let mut res = [[Edge::Unknown; 3]; 2];
     res[0][0] = edge_window_fetch(p, edges, i, j - 1, true);
     res[0][1] = edge_window_fetch(p, edges, i, j, true);
@@ -151,7 +147,7 @@ fn mk_edge_hor_window(p: &Puzzle, edges: &Vec<Edge>, i: isize, j: isize) -> Hori
     res
 }
 
-fn mk_edge_vert_window(p: &Puzzle, edges: &Vec<Edge>, i: isize, j: isize) -> Verticals {
+fn mk_edge_vert_window(p: &Puzzle, edges: &[Edge], i: isize, j: isize) -> Verticals {
     let mut res = [[Edge::Unknown; 2]; 3];
 
     res[0][0] = edge_window_fetch(p, edges, i - 1, j, false);

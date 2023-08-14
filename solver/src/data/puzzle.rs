@@ -71,7 +71,7 @@ impl Puzzle {
                 // println!("R-Down");
                 res.push(self.edge_ix(i, j + 1, false));
             }
-            if j + 1 <= self.ysize && i > 0 {
+            if j < self.ysize && i > 0 {
                 // println!("R-Up");
                 res.push(self.edge_ix(i - 1, j + 1, false));
             }

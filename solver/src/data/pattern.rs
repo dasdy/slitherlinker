@@ -23,20 +23,19 @@ pub enum Edge {
 
 impl Cell {
     fn matches(&self, other: &Self) -> bool {
-        return *self == Cell::Any || *other == Cell::Any || *self == *other;
+        *self == Cell::Any || *other == Cell::Any || *self == *other
     }
 }
 
 impl Edge {
     fn matches(&self, other: &Self) -> bool {
-        return *self == Edge::Any
+        *self == Edge::Any
             || *other == Edge::Any
             || *self == *other
             // || (*self == Edge::OutOfBounds && *other == Edge::Empty)
             // || (*self == Edge::Empty && *other == Edge::OutOfBounds)
             || (*self == Edge::EmptyStrict && *other == Edge::Empty)
             || (*self == Edge::Empty && *other == Edge::EmptyStrict)
-            ;
     }
 }
 
@@ -138,7 +137,7 @@ impl fmt::Display for PatternSolution {
 
             // horizontals
             if i < 2 {
-                res.push_str("*");
+                res.push('*');
                 for j in 0..self.output.horizontals[i].len() {
                     res.push_str(match self.output.horizontals[i][j] {
                         Edge::Filled => ".-",
@@ -146,9 +145,9 @@ impl fmt::Display for PatternSolution {
                         _ => ". ",
                     })
                 }
-                res.push_str("*");
+                res.push('*');
             }
-            res.push_str("\n");
+            res.push('\n');
         }
 
         f.write_str(&res)
@@ -167,7 +166,7 @@ pub fn rot90<T: Copy, const W: usize, const H: usize>(v: &[[T; W]; H]) -> [[T; H
 }
 
 fn mirror<T: Copy, const W: usize, const H: usize>(v: &[[T; W]; H]) -> [[T; W]; H] {
-    let mut r = v.clone();
+    let mut r = *v;
     for i in 0..v.len() {
         for j in 0..v[0].len() {
             let e = v[i][j];
@@ -180,14 +179,14 @@ fn mirror<T: Copy, const W: usize, const H: usize>(v: &[[T; W]; H]) -> [[T; W]; 
 impl Pattern {
     //clokwise rotate
     pub fn rot90(&self) -> Pattern {
-        let mut n = self.clone();
+        let mut n = *self;
         n.verticals = rot90(&self.horizontals);
         n.horizontals = rot90(&self.verticals);
         n
     }
 
     fn mirror(&self) -> Pattern {
-        let mut n = self.clone();
+        let mut n = *self;
         n.verticals = mirror(&self.verticals);
         n.horizontals = mirror(&self.horizontals);
         n
@@ -196,25 +195,23 @@ impl Pattern {
 
 impl PatternSolution {
     fn rot90(&self) -> PatternSolution {
-        let n = PatternSolution {
+        PatternSolution {
             cells: rot90(&self.cells),
             input: self.input.rot90(),
             output: self.output.rot90(),
-        };
-        n
+        }
     }
 
     fn reflect(&self) -> PatternSolution {
-        let n = PatternSolution {
+        PatternSolution {
             cells: mirror(&self.cells),
             input: self.input.mirror(),
             output: self.output.mirror(),
-        };
-        n
+        }
     }
     pub fn rotations(&self) -> Vec<PatternSolution> {
         let mut res: Vec<PatternSolution> = vec![];
-        res.push(self.clone());
+        res.push(*self);
         for _ in 0..3 {
             res.push(res.last().unwrap().rot90());
         }
@@ -244,7 +241,7 @@ impl PatternSolution {
         }
 
         let h: HashSet<PatternSolution> = HashSet::from_iter(res);
-        let mut r: Vec<PatternSolution> = h.iter().map(|&x| x).collect();
+        let mut r: Vec<PatternSolution> = h.iter().copied().collect();
 
         r.sort();
         // let r = res.iter().map(|&x| x).collect();
@@ -273,8 +270,11 @@ impl PatternSolution {
                 if !self.input.horizontals[i][j].matches(&horizontals[i][j]) {
                     return false;
                 }
-
-                if !self.input.verticals[j][i].matches(&verticals[j][i]) {
+            }
+        }
+        for i in 0..verticals.len() {
+            for j in 0..verticals[0].len() {
+                if !self.input.verticals[i][j].matches(&verticals[i][i]) {
                     return false;
                 }
             }
@@ -458,7 +458,6 @@ pub mod test {
             &[
                 [Edge::OutOfBounds, Edge::OutOfBounds, Edge::OutOfBounds],
                 [Edge::OutOfBounds, Edge::Filled, Edge::Empty],
-                
             ],
             &[
                 [Edge::OutOfBounds, Edge::OutOfBounds],
@@ -508,7 +507,6 @@ pub mod test {
             &[
                 [Edge::OutOfBounds, Edge::OutOfBounds, Edge::OutOfBounds],
                 [Edge::OutOfBounds, Edge::Filled, Edge::Empty],
-                
             ],
             &[
                 [Edge::OutOfBounds, Edge::OutOfBounds],
