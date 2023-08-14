@@ -17,6 +17,7 @@ pub enum Edge {
     OutOfBounds,
     Unknown,
     Empty,
+    EmptyStrict,
     Filled,
 }
 
@@ -33,6 +34,8 @@ impl Edge {
             || *self == *other
             // || (*self == Edge::OutOfBounds && *other == Edge::Empty)
             // || (*self == Edge::Empty && *other == Edge::OutOfBounds)
+            || (*self == Edge::EmptyStrict && *other == Edge::Empty)
+            || (*self == Edge::Empty && *other == Edge::EmptyStrict)
             ;
     }
 }
