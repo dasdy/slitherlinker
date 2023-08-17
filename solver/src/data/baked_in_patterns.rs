@@ -467,12 +467,12 @@ pub fn patterns() -> HashMap<String, PatternSolution> {
         },
         input: Pattern {
             horizontals: [
-                [Edge::Any, Edge::Empty, Edge::Any],
+                [Edge::Any, Edge::EmptyStrict, Edge::Any],
                 [Edge::Any, Edge::Any, Edge::Any],
             ],
             verticals: [
-                [Edge::Empty, Edge::Any],
-                [Edge::Empty, Edge::Any],
+                [Edge::EmptyStrict, Edge::Any],
+                [Edge::EmptyStrict, Edge::Any],
                 [Edge::Any, Edge::Any],
             ],
         },

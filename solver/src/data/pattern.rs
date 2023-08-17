@@ -32,8 +32,8 @@ impl Edge {
         *self == Edge::Any
             || *other == Edge::Any
             || *self == *other
-            // || (*self == Edge::OutOfBounds && *other == Edge::Empty)
-            // || (*self == Edge::Empty && *other == Edge::OutOfBounds)
+            || (*self == Edge::OutOfBounds && *other == Edge::Empty)
+            || (*self == Edge::Empty && *other == Edge::OutOfBounds)
             || (*self == Edge::EmptyStrict && *other == Edge::Empty)
             || (*self == Edge::Empty && *other == Edge::EmptyStrict)
     }
@@ -76,6 +76,7 @@ impl fmt::Display for PatternSolution {
                 res.push_str(match self.input.verticals[i][j] {
                     Edge::Filled => "|",
                     Edge::Empty => "x",
+                    Edge::OutOfBounds => "%",
                     _ => " ",
                 })
             }
@@ -96,6 +97,7 @@ impl fmt::Display for PatternSolution {
                     res.push_str(match self.input.horizontals[i][j] {
                         Edge::Filled => ".-",
                         Edge::Empty => ".x",
+                        Edge::OutOfBounds => ".%",
                         _ => ". ",
                     })
                 }
@@ -121,6 +123,7 @@ impl fmt::Display for PatternSolution {
                 res.push_str(match self.output.verticals[i][j] {
                     Edge::Filled => "|",
                     Edge::Empty => "x",
+                    Edge::OutOfBounds => "%",
                     _ => " ",
                 })
             }
@@ -142,6 +145,7 @@ impl fmt::Display for PatternSolution {
                     res.push_str(match self.output.horizontals[i][j] {
                         Edge::Filled => ".-",
                         Edge::Empty => ".x",
+                        Edge::OutOfBounds => "%",
                         _ => ". ",
                     })
                 }
@@ -274,7 +278,7 @@ impl PatternSolution {
         }
         for i in 0..verticals.len() {
             for j in 0..verticals[0].len() {
-                if !self.input.verticals[i][j].matches(&verticals[i][i]) {
+                if !self.input.verticals[i][j].matches(&verticals[i][j]) {
                     return false;
                 }
             }
@@ -452,6 +456,25 @@ pub mod test {
         for r in rs.clone() {
             println!("{r}")
         }
+
+
+        let test = PatternSolution {
+            cells: threes_ortho.cells,
+            input:Pattern {
+                horizontals: [
+                    [Edge::OutOfBounds, Edge::OutOfBounds, Edge::OutOfBounds],
+                    [Edge::OutOfBounds, Edge::Filled, Edge::Empty],
+                ],
+                verticals: [
+                    [Edge::OutOfBounds, Edge::OutOfBounds],
+                    [Edge::OutOfBounds, Edge::OutOfBounds],
+                    [Edge::Filled, Edge::Unknown],
+                ]
+            },
+            output: rs[0].output
+        };
+        println!("test data!:{test}");
+
 
         assert!(rs.iter().any(|p| p.try_match(
             &threes_ortho.cells,

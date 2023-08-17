@@ -9,6 +9,8 @@ use crate::data::pattern::PatternSolution;
 use crate::data::pattern::Verticals;
 use crate::data::puzzle::Puzzle;
 
+use crate::data::solution::_format_edges;
+
 pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
     let mut res = HashMap::new();
 
@@ -38,8 +40,16 @@ pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
                         let current_size = res.len();
                         update_things(&mut res, &mut options, p, puzzle, i, j);
                         if res.len() > current_size {
-                            println!("found new {pname} at {i} {j}:\n{p}\n");
+                            println!("found new {pname} at {i} {j}");
                             found_facts = true;
+
+                            
+                            let mut base_edges = vec![Edge::Unknown; (1 + xsize) * ysize + (1 + ysize) * xsize];
+                            for (&k, &v) in res.iter() {
+                                base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
+                            }
+
+                            println!("after this step:\n{}", _format_edges(puzzle, &base_edges));
                         }
                     };
                 }

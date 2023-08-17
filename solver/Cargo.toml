@@ -10,4 +10,6 @@ edition = "2021"
 varisat = "0.2.2"
 regex = "1"
 transpose = "0.2.2"
-# splr = {version = "0.16.0", features = ["incremental_solver"] }
+
+# TODO figure out maybe this one's better. incremental thing does not seem to work :(
+splr = { version = "^0.17", features = ["incremental_solver"] }
