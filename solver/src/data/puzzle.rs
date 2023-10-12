@@ -112,7 +112,7 @@ impl Puzzle {
         res
     }
 
-    pub fn edges_around_point(&self, i: usize, j: usize) -> Vec<Lit> {
+    pub fn edges_around_point(&self, i: usize, j: usize) -> Vec<usize> {
         let mut res = vec![];
         if i > 0 {
             res.push(self.edge_ix(i - 1, j, false))
@@ -127,7 +127,7 @@ impl Puzzle {
             res.push(self.edge_ix(i, j, true))
         }
 
-        res.iter().map(|&i| Lit::from_index(i, true)).collect()
+        res
     }
 }
 

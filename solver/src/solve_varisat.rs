@@ -52,7 +52,7 @@ fn edge_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormu
     for i in 0..=p.xsize {
         for j in 0..=p.ysize {
             let es = p.edges_around_point(i, j);
-            if es.iter().all(|&l| facts.contains_key(&l.index())) {
+            if es.iter().all(|&l| facts.contains_key(&l)) {
                 println!("Skipping edge clauses for [{i}][{j}]");
                 continue;
             }
@@ -66,7 +66,11 @@ fn edge_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormu
             // println!("loop: {} [{i}][{j}]: {:?}", es.len(), clauses);
             for c in clauses {
                 // formula.add_clause(c);
-                formula.add_clause(&c);
+                formula.add_clause(
+                    &c.iter()
+                        .map(|&x| Lit::from_index(x, true))
+                        .collect::<Vec<Lit>>(),
+                );
             }
         }
     }

@@ -1,13 +1,7 @@
-use std::{
-    collections::{HashMap, HashSet, LinkedList},
-    fmt,
-    ops::Sub,
-};
+use std::collections::HashMap;
 
-use splr::config::Config;
 use splr::solver::*;
 use splr::types::*;
-use splr::*;
 
 use crate::data::pattern::Edge;
 use crate::data::puzzle::Puzzle;
@@ -16,11 +10,13 @@ use crate::parse::Cell;
 use crate::patterns::find_facts;
 use crate::solve_common::single_loop;
 use crate::solve_common::{
-    clause_one, clause_three, clause_two, clause_zero, loop_four, loop_three, loop_two, single_loop,
+    clause_one, clause_three, clause_two, clause_zero, loop_four, loop_three, loop_two,
 };
 
+pub type Rules = Vec<Vec<Lit>>;
+
 // TODO rewrite this using sprl solver or something like that i dunno
-fn cell_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormula) {
+fn cell_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut Rules) {
     for i in 0..p.xsize {
         for j in 0..p.ysize {
             let condition = p.cells[i][j];
@@ -35,11 +31,12 @@ fn cell_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormu
                 println!("Skipping cell clause: {condition} at [{i}][{j}]");
                 continue;
             }
+            // all set to true
             let lits = (
-                Lit::from_index(edges.0, true),
-                Lit::from_index(edges.1, true),
-                Lit::from_index(edges.2, true),
-                Lit::from_index(edges.3, true),
+                Lit::from(edges.0),
+                Lit::from(edges.1),
+                Lit::from(edges.2),
+                Lit::from(edges.3),
             );
             let v = match condition {
                 0 => clause_zero(lits),
@@ -52,18 +49,19 @@ fn cell_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormu
             // println!("cell ({condition} [{i}][{j}]): {:?}", v);
             for c in v {
                 // formula.add_clause(c);
-                formula.add_clause(&c);
+                formula.push(c);
             }
         }
     }
 }
 
 // TODO rewrite this using sprl solver or something like that i dunno
-fn edge_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormula) {
+fn edge_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut Rules) {
     for i in 0..=p.xsize {
         for j in 0..=p.ysize {
+            // TODO this should return correct lit from splr
             let es = p.edges_around_point(i, j);
-            if es.iter().all(|&l| facts.contains_key(&l.index())) {
+            if es.iter().all(|&l| facts.contains_key(&l)) {
                 println!("Skipping edge clauses for [{i}][{j}]");
                 continue;
             }
@@ -77,7 +75,7 @@ fn edge_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormu
             // println!("loop: {} [{i}][{j}]: {:?}", es.len(), clauses);
             for c in clauses {
                 // formula.add_clause(c);
-                formula.add_clause(&c);
+                formula.push(c.iter().map(|&l| Lit::from(l as i32)).collect());
             }
         }
     }
@@ -109,65 +107,75 @@ pub fn solve_splr(grid: Vec<Vec<Cell>>, pre_solve: bool) -> Option<Vec<Solution>
 
     println!("After simplify:\n{}", _format_edges(&p, &base_edges));
 
-    let mut formula = CnfFormula::new();
+    let mut formula: Rules = Rules::new();
 
     for (&k, &v) in facts.iter() {
-        formula.add_clause(&[Lit::from_index(k, v)]);
+        let edge = if v { Lit::from(k) } else { Lit::from(!k) };
+        formula.push(vec![edge]);
     }
 
     cell_clauses(&p, &facts, &mut formula);
     edge_clauses(&p, &facts, &mut formula);
 
-    let mut s = Solver::default();
-    s.add_formula(&formula);
+    let mut final_formula: Vec<Vec<i32>> = formula
+        .iter()
+        .map(|is| is.iter().map(|x| x.into()).collect())
+        .collect();
 
-    let mut sols = vec![];
+    let mut solutions = vec![];
     let mut counter = 0;
     let mut last_solution = None;
     println!("facts found: {}", facts.len());
     while counter < 10000 {
-        let has_solutions = s.solve().unwrap();
+        // let has_solutions = result.is_ok() && result.unwrap();
         if counter % 500 == 0 {
             println!("attempt {counter}");
         }
-        if has_solutions {
-            let m = s.model().unwrap();
-            let edges: Vec<Edge> = m
-                .iter()
-                .map(|&x| {
-                    if x.is_positive() {
-                        Edge::Filled
-                    } else {
-                        Edge::Empty
-                    }
-                })
-                .collect();
-            let solution = Solution {
-                puzzle: p.clone(),
-                edges: edges.clone(),
-                edges_pre_solve: base_edges.clone(),
-                facts: facts.clone(),
-            };
-            if single_loop(&p, &edges) {
-                println!("WIN! found single-loop solution! ");
-                sols.push(solution);
-            } else {
-                last_solution = Some(solution);
+        let solve_result = Certificate::try_from(final_formula.clone());
+        match solve_result {
+            Ok(Certificate::SAT(sol)) => {
+                let edges: Vec<Edge> = sol
+                    .iter()
+                    .map(|&x| {
+                        if x.is_positive() {
+                            Edge::Filled
+                        } else {
+                            Edge::Empty
+                        }
+                    })
+                    .collect();
+                let solution = Solution {
+                    puzzle: p.clone(),
+                    edges: edges.clone(),
+                    edges_pre_solve: base_edges.clone(),
+                    facts: facts.clone(),
+                };
+                if single_loop(&p, &edges) {
+                    println!("WIN! found single-loop solution! ");
+                    solutions.push(solution);
+                } else {
+                    last_solution = Some(solution);
+                }
+                let new_clause: Vec<i32> = sol.iter().map(|&l| -l).collect();
+                final_formula.push(new_clause);
             }
-            let new_clause: Vec<Lit> = m.iter().map(|&l| !l).collect();
-            s.add_clause(&new_clause);
-        } else {
-            println!("No more solutions!");
-            break;
-        }
+            Ok(Certificate::UNSAT) => {
+                println!("No more solutions!");
+                break;
+            }
+            Err(e) => {
+                println!("error: {}", e);
+                break;
+            }
+        };
         counter += 1;
     }
-    if sols.is_empty() {
+    if solutions.is_empty() {
         println!("no proper solutions, well here's last thing:");
         match last_solution {
-            Some(s) => sols.push(s),
+            Some(s) => solutions.push(s),
             None => println!("oh well"),
         };
     }
-    Some(sols)
+    Some(solutions)
 }
