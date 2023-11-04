@@ -1,92 +1,19 @@
 use std::collections::HashMap;
 
+
 use splr::solver::*;
 use splr::types::*;
+use crate::adapter::SplrRules;
+
 
 use crate::data::pattern::Edge;
 use crate::data::puzzle::Puzzle;
 use crate::data::solution::{Solution, _format_edges};
 use crate::parse::Cell;
 use crate::patterns::find_facts;
-use crate::solve_common::single_loop;
-use crate::solve_common::{
-    clause_one, clause_three, clause_two, clause_zero, loop_four, loop_three, loop_two,
-};
+use crate::solve_common::{cell_clauses, edge_clauses, single_loop};
 
-pub type Rules = Vec<Vec<Lit>>;
 
-// TODO rewrite this using sprl solver or something like that i dunno
-fn cell_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut Rules) {
-    for i in 0..p.xsize {
-        for j in 0..p.ysize {
-            let condition = p.cells[i][j];
-            if condition < 0 {
-                continue;
-            }
-            let edges = p.edges_around_cell(i, j);
-            if vec![edges.0, edges.1, edges.2, edges.3]
-                .iter()
-                .all(|i| facts.contains_key(i))
-            {
-                println!("Skipping cell clause: {condition} at [{i}][{j}]");
-                continue;
-            }
-            // all set to true
-            let lits = (
-                Lit::from(edges.0),
-                Lit::from(edges.1),
-                Lit::from(edges.2),
-                Lit::from(edges.3),
-            );
-            let v = match condition {
-                0 => clause_zero(lits),
-                1 => clause_one(lits),
-                2 => clause_two(lits),
-                3 => clause_three(lits),
-                _ => vec![],
-            };
-
-            // println!("cell ({condition} [{i}][{j}]): {:?}", v);
-            for c in v {
-                // formula.add_clause(c);
-                formula.push(c);
-            }
-        }
-    }
-}
-
-// TODO rewrite this using sprl solver or something like that i dunno
-fn edge_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut Rules) {
-    for i in 0..=p.xsize {
-        for j in 0..=p.ysize {
-            // TODO this should return correct lit from splr
-            let es = p.edges_around_point(i, j)
-                .iter()
-                .map(|&x| Lit::from(x as i32))
-                .collect::<Vec<Lit>>();
-            if es.iter().all(|&l| {
-                let l_ix: i32 = l.into(); // TODO can this be done in one call in rust? i32 is important
-                facts.contains_key(&(l_ix as usize)) // this is a safe cast because all clauses are true at this point
-            }
-            ) {
-                println!("Skipping edge clauses for [{i}][{j}]");
-                continue;
-            }
-            let clauses = match es.len() {
-                2 => loop_two(es[0], es[1]),
-                3 => loop_three(es[0], es[1], es[2]),
-                4 => loop_four(es[0], es[1], es[2], es[3]),
-                _ => panic!("???"),
-            };
-
-            // println!("loop: {} [{i}][{j}]: {:?}", es.len(), clauses);
-            for c in clauses {
-                // formula.add_clause(c);
-                formula.push(c);
-            }
-        }
-    }
-}
 
 // TODO try extracting common code with verisat solve
 pub fn solve_splr(grid: Vec<Vec<Cell>>, pre_solve: bool) -> Option<Vec<Solution>> {
@@ -114,7 +41,7 @@ pub fn solve_splr(grid: Vec<Vec<Cell>>, pre_solve: bool) -> Option<Vec<Solution>
 
     println!("After simplify:\n{}", _format_edges(&p, &base_edges));
 
-    let mut formula: Rules = Rules::new();
+    let mut formula: SplrRules = SplrRules::new();
 
     for (&k, &v) in facts.iter() {
         let edge = if v { Lit::from(k) } else { Lit::from(!k) };

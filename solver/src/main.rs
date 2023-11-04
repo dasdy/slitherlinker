@@ -1,9 +1,10 @@
-pub mod data;
-pub mod parse;
-pub mod patterns;
-pub mod solve_common;
-pub mod solve_varisat;
-pub mod solve_splr;
+mod data;
+mod parse;
+mod patterns;
+mod solve_common;
+mod solve_varisat;
+mod solve_splr;
+mod adapter;
 
 use parse::from_string;
 use solve_varisat::solve;

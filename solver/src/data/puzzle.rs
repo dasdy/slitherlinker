@@ -1,6 +1,5 @@
 
 use crate::parse::Cell;
-use varisat::Lit;
 
 pub type Edge = bool;
 
