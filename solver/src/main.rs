@@ -28,6 +28,7 @@ pub fn main() {
     }
 
     let maybe_solution = solve(grid, true);
+    // let maybe_solution = solve_splr(grid, true);
     match maybe_solution {
         Some(sols) => {
             for (i, s) in sols.iter().enumerate() {

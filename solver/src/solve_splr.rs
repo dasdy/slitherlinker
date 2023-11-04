@@ -60,8 +60,15 @@ fn edge_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut Rules) {
     for i in 0..=p.xsize {
         for j in 0..=p.ysize {
             // TODO this should return correct lit from splr
-            let es = p.edges_around_point(i, j);
-            if es.iter().all(|&l| facts.contains_key(&l)) {
+            let es = p.edges_around_point(i, j)
+                .iter()
+                .map(|&x| Lit::from(x as i32))
+                .collect::<Vec<Lit>>();
+            if es.iter().all(|&l| {
+                let l_ix: i32 = l.into(); // TODO can this be done in one call in rust? i32 is important
+                facts.contains_key(&(l_ix as usize)) // this is a safe cast because all clauses are true at this point
+            }
+            ) {
                 println!("Skipping edge clauses for [{i}][{j}]");
                 continue;
             }
@@ -75,7 +82,7 @@ fn edge_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut Rules) {
             // println!("loop: {} [{i}][{j}]: {:?}", es.len(), clauses);
             for c in clauses {
                 // formula.add_clause(c);
-                formula.push(c.iter().map(|&l| Lit::from(l as i32)).collect());
+                formula.push(c);
             }
         }
     }

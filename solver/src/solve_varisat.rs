@@ -10,6 +10,7 @@ use crate::solve_common::{
     clause_one, clause_three, clause_two, clause_zero, loop_four, loop_three, loop_two, single_loop,
 };
 
+/// Create clauses for number clues in puzzle
 fn cell_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormula) {
     for i in 0..p.xsize {
         for j in 0..p.ysize {
@@ -48,14 +49,21 @@ fn cell_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormu
     }
 }
 
+/// Given a puzzle and pre-determined list of facts, add new clauses that are restricting based on
+/// amount of edges coming in (for any point, only 0 or 2 edges can come into the point max)
 fn edge_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormula) {
     for i in 0..=p.xsize {
         for j in 0..=p.ysize {
-            let es = p.edges_around_point(i, j);
-            if es.iter().all(|&l| facts.contains_key(&l)) {
+            let es = p
+                .edges_around_point(i, j)
+                .iter()
+                .map(|&x| Lit::from_index(x, true))
+                .collect::<Vec<Lit>>();
+            if es.iter().all(|&l| facts.contains_key(&l.index())) {
                 println!("Skipping edge clauses for [{i}][{j}]");
                 continue;
             }
+
             let clauses = match es.len() {
                 2 => loop_two(es[0], es[1]),
                 3 => loop_three(es[0], es[1], es[2]),
@@ -66,11 +74,7 @@ fn edge_clauses(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut CnfFormu
             // println!("loop: {} [{i}][{j}]: {:?}", es.len(), clauses);
             for c in clauses {
                 // formula.add_clause(c);
-                formula.add_clause(
-                    &c.iter()
-                        .map(|&x| Lit::from_index(x, true))
-                        .collect::<Vec<Lit>>(),
-                );
+                formula.add_clause(&c);
             }
         }
     }
