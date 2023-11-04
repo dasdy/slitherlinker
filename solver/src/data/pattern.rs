@@ -302,7 +302,7 @@ pub mod test {
     #[test]
     fn test_rotate_array() {
         let r = rot90(&[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]);
-        assert!(r == [[9, 5, 1], [10, 6, 2], [11, 7, 3], [12, 8, 4]])
+        assert_eq!(r, [[9, 5, 1], [10, 6, 2], [11, 7, 3], [12, 8, 4]])
     }
 
     #[test]
@@ -331,7 +331,7 @@ pub mod test {
             ],
         };
 
-        assert!(p_rot == expected)
+        assert_eq!(p_rot, expected)
     }
 
     #[test]
@@ -361,7 +361,7 @@ pub mod test {
             ],
         };
 
-        assert!(p_rot == expected)
+        assert_eq!(p_rot, expected)
     }
 
     #[test]

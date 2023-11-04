@@ -2,6 +2,7 @@ use std::ops::Not;
 use splr::types::Lit as SplrLit;
 use varisat::{CnfFormula, ExtendFormula, Lit as VLit};
 
+/// Adapter to enable writing generic solvers using different SAT engines
 pub trait SlitherlinkerFormula<T>
     where
         T: Not<Output=T> + Copy, {

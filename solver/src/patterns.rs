@@ -207,10 +207,9 @@ mod test {
             ysize: 10,
         };
         update_things(&mut h, &mut edges, &threes_ortho, &p, 3, 4);
-        println!("h: {:?}", h);
-        assert!(HashMap::from([(44, true), (34, true), (147, false)]) == h);
+        assert_eq!(HashMap::from([(44, true), (34, true), (147, false)]), h);
         h.clear();
         update_things(&mut h, &mut edges, &threes_ortho, &p, 0, 0);
-        assert!(HashMap::from([(0, true), (10, true), (110, false)]) == h);
+        assert_eq!(HashMap::from([(0, true), (10, true), (110, false)]), h);
     }
 }

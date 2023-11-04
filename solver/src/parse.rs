@@ -58,7 +58,7 @@ mod test {
     fn simple_zero_case() {
         let result = from_string("2x2:0000").unwrap();
         let expected = [[0, 0],[0, 0]];
-        assert!(result == expected)
+        assert_eq!(result, expected)
     }
 
     #[test]
@@ -78,27 +78,27 @@ mod test {
             [1, -1, 3, -1, -1, -1, -1, -1, -1, -1],
             [-1, -1, -1, -1, 2, -1, -1, -1, 2, -1],
         ];
-        assert!(result == expected);
+        assert_eq!(result, expected);
     }
     #[test]
     fn initial_negative() {
         let result = from_string("2x2:a").unwrap();
         let expected = vec![vec![-1; 2]; 2];
-        assert!(result == expected)
+        assert_eq!(result, expected)
     }
 
     #[test]
     fn initial_uses_numbers() {
         let result = from_string("2x2:1234").unwrap();
         let expected = [[1, 2],[3, 4]];
-        assert!(result == expected)
+        assert_eq!(result, expected)
     }
 
     #[test]
     fn skips_rows() {
         let result = from_string("2x2:c4").unwrap();
         let expected = [[-1, -1], [-1, 4]];
-        assert!(result == expected)
+        assert_eq!(result, expected)
     }
 
     #[test]
@@ -114,6 +114,6 @@ mod test {
             [-1, -1, 3, -1, -1],
             [-1, -1, 4, -1, -1],
         ];
-        assert!(result == expected)
+        assert_eq!(result, expected)
     }
 }

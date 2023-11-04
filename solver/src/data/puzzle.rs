@@ -141,8 +141,7 @@ mod test {
             ysize: 2,
         };
         let e = p.edges_around_cell(1, 1);
-        println!("{:?}", e);
-        assert!(e == (3, 5, 10, 11));
+        assert_eq!(e, (3, 5, 10, 11));
     }
 
     #[test]
@@ -153,10 +152,10 @@ mod test {
             ysize: 10,
         };
         let e = p.edges_around_cell(9, 9);
-        assert!(e == (99, 109, 218, 219));
+        assert_eq!(e, (99, 109, 218, 219));
 
         let e = p.edges_around_cell(0, 0);
-        assert!(e == (0, 10, 110, 111));
+        assert_eq!(e, (0, 10, 110, 111));
     }
 
     #[test]
@@ -167,39 +166,67 @@ mod test {
             ysize: 2,
         };
         let e = p.edges_around_edge(0);
-        assert!(e == [1, 6, 7]);
+        assert_eq!(e, [1, 6, 7]);
 
         let e = p.edges_around_edge(1);
-        assert!(e == [0, 7, 8]);
+        assert_eq!(e, [0, 7, 8]);
 
         let e = p.edges_around_edge(2);
-        assert!(e == [3, 6, 7, 9, 10]);
+        assert_eq!(e, [3, 6, 7, 9, 10]);
 
         let e = p.edges_around_edge(3);
-        assert!(e == [2, 7, 8, 10, 11]);
+        assert_eq!(e, [2, 7, 8, 10, 11]);
 
         let e = p.edges_around_edge(4);
-        assert!(e == [5, 9, 10]);
+        assert_eq!(e, [5, 9, 10]);
 
         let e = p.edges_around_edge(5);
-        assert!(e == [4, 10, 11]);
+        assert_eq!(e, [4, 10, 11]);
 
         let e = p.edges_around_edge(6);
-        assert!(e == [0, 2, 9]);
+        assert_eq!(e, [0, 2, 9]);
 
         let e = p.edges_around_edge(7);
-        assert!(e == [0, 1, 2, 3, 10]);
+        assert_eq!(e, [0, 1, 2, 3, 10]);
 
         let e = p.edges_around_edge(8);
-        assert!(e == [1, 3, 11]);
+        assert_eq!(e, [1, 3, 11]);
 
         let e = p.edges_around_edge(9);
-        assert!(e == [2, 4, 6]);
+        assert_eq!(e, [2, 4, 6]);
 
         let e = p.edges_around_edge(10);
-        assert!(e == [2, 3, 4, 5, 7]);
+        assert_eq!(e, [2, 3, 4, 5, 7]);
 
         let e = p.edges_around_edge(11);
-        assert!(e == [3, 5, 8]);
+        assert_eq!(e, [3, 5, 8]);
+    }
+
+    #[test]
+    fn test_edges_around_point() {
+        let p = Puzzle {
+            cells: vec![],
+            xsize: 2,
+            ysize: 2,
+        };
+
+        let e = p.edges_around_point(0, 0);
+        assert_eq!(e, [6, 0]);
+        let e = p.edges_around_point(0, 1);
+        assert_eq!(e, [0, 7, 1]);
+        let e = p.edges_around_point(0, 2);
+        assert_eq!(e, [1, 8]);
+        let e = p.edges_around_point(1, 0);
+        assert_eq!(e, [6, 9, 2]);
+        let e = p.edges_around_point(1, 1);
+        assert_eq!(e, [7, 2, 10, 3]);
+        let e = p.edges_around_point(1, 2);
+        assert_eq!(e, [8, 3, 11]);
+        let e = p.edges_around_point(2, 0);
+        assert_eq!(e, [9, 4]);
+        let e = p.edges_around_point(2, 1);
+        assert_eq!(e, [10, 4, 5]);
+        let e = p.edges_around_point(2, 2);
+        assert_eq!(e, [11, 5]);
     }
 }
