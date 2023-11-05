@@ -19,9 +19,9 @@ pub fn _format_edges(puzzle: &Puzzle, edges: &[Edge]) -> String {
         // top edges
         for j in 0..puzzle.ysize {
             let ix = puzzle.edge_ix(i, j, true);
-            match edges[ix] {
-                Edge::Filled => res.push_str(".-"),
-                Edge::Empty => res.push_str(".x"),
+            match edges.get(ix) {
+                Some(Edge::Filled) => res.push_str(".-"),
+                Some(Edge::Empty) => res.push_str(".x"),
                 _ => res.push_str(". "),
             }
         }
@@ -30,9 +30,9 @@ pub fn _format_edges(puzzle: &Puzzle, edges: &[Edge]) -> String {
         // vertical edges
         for j in 0..puzzle.ysize {
             let ix = puzzle.edge_ix(i, j, false);
-            match edges[ix] {
-                Edge::Filled => res.push('|'),
-                Edge::Empty => res.push('x'),
+            match edges.get(ix) {
+                Some(Edge::Filled) => res.push('|'),
+                Some(Edge::Empty) => res.push('x'),
                 _ => res.push(' '),
             }
 
@@ -43,9 +43,9 @@ pub fn _format_edges(puzzle: &Puzzle, edges: &[Edge]) -> String {
             }
         }
 
-        match edges[puzzle.edge_ix(i, puzzle.ysize, false)] {
-            Edge::Filled => res.push('|'),
-            Edge::Empty => res.push('x'),
+        match edges.get(puzzle.edge_ix(i, puzzle.ysize, false)) {
+            Some(Edge::Filled) => res.push('|'),
+            Some(Edge::Empty) => res.push('x'),
             _ => res.push(' '),
         }
 
@@ -53,9 +53,9 @@ pub fn _format_edges(puzzle: &Puzzle, edges: &[Edge]) -> String {
     }
 
     for j in 0..puzzle.ysize {
-        match edges[puzzle.edge_ix(puzzle.xsize, j, true)] {
-            Edge::Filled => res.push_str(" -"),
-            Edge::Empty => res.push_str(" x"),
+        match edges.get(puzzle.edge_ix(puzzle.xsize, j, true)) {
+            Some(Edge::Filled) => res.push_str(" -"),
+            Some(Edge::Empty) => res.push_str(" x"),
             _ => res.push_str("  "),
         }
     }

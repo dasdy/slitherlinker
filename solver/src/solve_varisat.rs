@@ -95,3 +95,50 @@ pub fn solve(grid: Vec<Vec<Cell>>, pre_solve: bool) -> Option<Vec<Solution>> {
     }
     Some(sols)
 }
+
+#[cfg(test)]
+mod test {
+    use super::solve;
+    use super::Edge;
+
+    #[test]
+    fn solves_simplest_2x2() {
+        let s = solve(vec![vec![3, 2], vec![-1, -1]], false);
+        assert!(s.is_some());
+        let val = s.unwrap();
+        assert_eq!(val.len(), 2);
+        /*
+        .-.x
+        |3|2x
+        .x.-
+        | x |
+         - -
+         */
+        assert_eq!(val[1].edges,
+                   [
+                       // horizontal edges
+                       Edge::Filled, Edge::Empty,
+                       Edge::Empty, Edge::Filled,
+                       Edge::Filled, Edge::Filled,
+                       // vertical edges
+                       Edge::Filled, Edge::Filled, Edge::Empty,
+                       Edge::Filled, Edge::Empty, Edge::Filled]
+        );
+        /*
+        .-.-
+        |3x2|
+        .-.x
+        x | |
+         x -
+         */
+        assert_eq!(val[0].edges,
+                   // horizontal edges
+                   [Edge::Filled, Edge::Filled,
+                       Edge::Filled, Edge::Empty,
+                       Edge::Empty, Edge::Filled,
+                       // vertical edges
+                       Edge::Filled, Edge::Empty, Edge::Filled,
+                       Edge::Empty, Edge::Filled, Edge::Filled]
+        );
+    }
+}

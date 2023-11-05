@@ -28,8 +28,8 @@ pub fn main() {
         grid = from_string(puzzle_arg).unwrap();
     }
 
-    let maybe_solution = solve(grid, true);
-    // let maybe_solution = solve_splr(grid, true);
+    // let maybe_solution = solve(grid, false);
+    let maybe_solution = solve_splr(grid, false);
     match maybe_solution {
         Some(sols) => {
             for (i, s) in sols.iter().enumerate() {

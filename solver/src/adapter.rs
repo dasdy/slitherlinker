@@ -28,6 +28,6 @@ impl SlitherlinkerFormula<SplrLit> for SplrRules {
     }
 
     fn pure_lit(&self, ix: usize) -> SplrLit {
-        SplrLit::from(ix)
+        SplrLit::from(1 + ix as i32)
     }
 }

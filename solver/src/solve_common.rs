@@ -132,6 +132,9 @@ pub fn single_loop(puzzle: &Puzzle, edges: &[Edge]) -> bool {
         let neighbors: Vec<usize> = puzzle.edges_around_edge(item);
 
         for n in neighbors {
+            if n >= edges.len() {
+                continue;
+            }
             if edges[n] == Edge::Filled && !visited_edges.contains(&n) {
                 queue.push_back(n);
             }
