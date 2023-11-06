@@ -4,9 +4,11 @@ use std::{
 };
 use std::collections::HashMap;
 use crate::adapter::SlitherlinkerFormula;
-
+use crate::parse::Cell;
 use crate::data::pattern::Edge;
 use crate::data::puzzle::Puzzle;
+use crate::data::solution::_format_edges;
+use crate::patterns::find_facts;
 
 pub fn loop_two<T>(a: T, b: T) -> Vec<Vec<T>>
     where
@@ -216,4 +218,45 @@ pub fn edge_clauses<T>(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut i
             }
         }
     }
+}
+
+/// Using grid of cells,
+/// 1. create an instance of Puzzle
+/// 2. Find "facts" using patterns (only if pre_solve is true) as hashmap <edge-index: value>
+/// 3. Use facts and cell-edge input to mutate input boolean formula
+/// 4. Return the "base edges" vector - basically a materialized facts hashmap
+pub fn solve_form_conditions<T>(
+    grid: Vec<Vec<Cell>>, pre_solve: bool, formula: &mut impl SlitherlinkerFormula<T>,
+) -> (Puzzle, HashMap<usize, bool>, Vec<Edge>) where
+    T: Not<Output=T> + Copy, {
+    let xsize = grid.len();
+    let ysize = grid[0].len();
+
+    let p = Puzzle {
+        cells: grid,
+        xsize,
+        ysize,
+    };
+
+    let facts = if pre_solve {
+        find_facts(&p)
+    } else {
+        HashMap::new()
+    };
+
+    let mut base_edges = vec![Edge::Unknown; (1 + xsize) * ysize + (1 + ysize) * xsize];
+    for (&k, &v) in facts.iter() {
+        base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
+    }
+
+    println!("After simplify:\n{}", _format_edges(&p, &base_edges));
+
+    for (&k, &v) in facts.iter() {
+        let l = formula.pure_lit(k);
+        formula.append_clause(vec![if v { l } else { !l }]);
+    }
+
+    cell_clauses(&p, &facts, formula);
+    edge_clauses(&p, &facts, formula);
+    (p, facts, base_edges)
 }

@@ -1,46 +1,15 @@
-use std::collections::HashMap;
 use varisat::{CnfFormula, ExtendFormula, Lit, Solver};
-
 use crate::data::pattern::Edge;
-use crate::data::puzzle::Puzzle;
-use crate::data::solution::{Solution, _format_edges};
+use crate::data::solution::Solution;
 use crate::parse::Cell;
-use crate::patterns::find_facts;
-use crate::solve_common::{cell_clauses, edge_clauses, single_loop};
+use crate::solve_common::{single_loop, solve_form_conditions};
 
 pub fn solve(grid: Vec<Vec<Cell>>, pre_solve: bool) -> Option<Vec<Solution>> {
-    let xsize = grid.len();
-    let ysize = grid[0].len();
-    // let horizontals = (1 + xsize) * ysize;
-    // let verticals = xsize * (1 + ysize);
-
-    let p = Puzzle {
-        cells: grid,
-        xsize,
-        ysize,
-    };
-
-    let facts = if pre_solve {
-        find_facts(&p)
-    } else {
-        HashMap::new()
-    };
-
-    let mut base_edges = vec![Edge::Unknown; (1 + xsize) * ysize + (1 + ysize) * xsize];
-    for (&k, &v) in facts.iter() {
-        base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
-    }
-
-    println!("After simplify:\n{}", _format_edges(&p, &base_edges));
-
     let mut formula = CnfFormula::new();
 
-    for (&k, &v) in facts.iter() {
-        formula.add_clause(&[Lit::from_index(k, v)]);
-    }
 
-    cell_clauses(&p, &facts, &mut formula);
-    edge_clauses(&p, &facts, &mut formula);
+    let (p, facts, base_edges) = solve_form_conditions(
+        grid, pre_solve, &mut formula);
 
     let mut s = Solver::default();
     s.add_formula(&formula);
@@ -98,6 +67,7 @@ pub fn solve(grid: Vec<Vec<Cell>>, pre_solve: bool) -> Option<Vec<Solution>> {
 
 #[cfg(test)]
 mod test {
+    use crate::data::puzzle::Puzzle;
     use super::solve;
     use super::Edge;
 
@@ -115,14 +85,16 @@ mod test {
          - -
          */
         assert_eq!(val[1].edges,
-                   [
-                       // horizontal edges
-                       Edge::Filled, Edge::Empty,
-                       Edge::Empty, Edge::Filled,
-                       Edge::Filled, Edge::Filled,
-                       // vertical edges
-                       Edge::Filled, Edge::Filled, Edge::Empty,
-                       Edge::Filled, Edge::Empty, Edge::Filled]
+                   Puzzle::edges(
+                       &[
+                           [Edge::Filled, Edge::Empty],
+                           [Edge::Empty, Edge::Filled],
+                           [Edge::Filled, Edge::Filled]],
+                       &[
+                           [Edge::Filled, Edge::Filled, Edge::Empty],
+                           [Edge::Filled, Edge::Empty, Edge::Filled]
+                       ],
+                   ).unwrap()
         );
         /*
         .-.-
@@ -131,14 +103,17 @@ mod test {
         x | |
          x -
          */
-        assert_eq!(val[0].edges,
-                   // horizontal edges
-                   [Edge::Filled, Edge::Filled,
-                       Edge::Filled, Edge::Empty,
-                       Edge::Empty, Edge::Filled,
-                       // vertical edges
-                       Edge::Filled, Edge::Empty, Edge::Filled,
-                       Edge::Empty, Edge::Filled, Edge::Filled]
+        assert_eq!(val[1].edges,
+                   Puzzle::edges(
+                       &[
+                           [Edge::Filled, Edge::Empty],
+                           [Edge::Empty, Edge::Filled],
+                           [Edge::Filled, Edge::Filled]],
+                       &[
+                           [Edge::Filled, Edge::Filled, Edge::Empty],
+                           [Edge::Filled, Edge::Empty, Edge::Filled]
+                       ],
+                   ).unwrap()
         );
     }
 }

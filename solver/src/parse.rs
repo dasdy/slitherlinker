@@ -3,7 +3,7 @@ use std::error::Error;
 use std::fmt;
 
 pub type Cell = i8;
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 #[derive(Debug, Clone)]
 struct ParseError;

@@ -21,12 +21,10 @@ pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
 
     let patterns = patterns();
 
-    let xsize = puzzle.xsize;
-    let ysize = puzzle.ysize;
-    let horizontals = (1 + xsize) * ysize;
-    let verticals = xsize * (1 + ysize);
+    let horizontal_edge_count = (1 + puzzle.xsize) * puzzle.ysize;
+    let vertical_edge_count = puzzle.xsize * (1 + puzzle.ysize);
 
-    let mut options = vec![Edge::Unknown; horizontals + verticals];
+    let mut options = vec![Edge::Unknown; horizontal_edge_count + vertical_edge_count];
 
     let mut found_facts = true;
     let mut ctr = 0;
@@ -34,17 +32,20 @@ pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
         found_facts = false;
         ctr += 1;
 
-        for i in -1..xsize as isize {
-            for j in -1..ysize as isize {
+        for i in -1..puzzle.xsize as isize {
+            for j in -1..puzzle.ysize as isize {
                 let window = cell_window(puzzle, i, j);
-                let horizontals = horizontal_edge_window(puzzle, &options, i, j);
-                let verticals = vertical_edge_window(puzzle, &options, i, j);
+                let hor_edges = horizontal_edge_window(puzzle, &options, i, j);
+                let vert_edges = vertical_edge_window(puzzle, &options, i, j);
 
                 for (pattern_name, pattern_solution) in &patterns {
-                    if pattern_solution.try_match(&window, &horizontals, &verticals) {
+                    if pattern_solution.try_match(&window, &hor_edges, &vert_edges) {
                         let current_size = facts_map.len();
-                        remember_facts(&mut facts_map, &mut options,
-                                       pattern_solution, puzzle, i, j
+                        remember_facts(&mut facts_map,
+                                       &mut options,
+                                       pattern_solution,
+                                       puzzle,
+                                       i, j,
                         );
                         if facts_map.len() > current_size {
                             println!("found new {pattern_name} at {i} {j}");
@@ -52,7 +53,7 @@ pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
 
 
                             let mut base_edges = vec![
-                                Edge::Unknown; (1 + xsize) * ysize + (1 + ysize) * xsize
+                                Edge::Unknown; horizontal_edge_count + vertical_edge_count
                             ];
                             for (&k, &v) in facts_map.iter() {
                                 base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
@@ -219,11 +220,7 @@ mod test {
 
         let mut h: HashMap<usize, bool> = HashMap::new();
         let mut edges = vec![Edge::Empty; 220];
-        let p = Puzzle {
-            cells: vec![],
-            xsize: 10,
-            ysize: 10,
-        };
+        let p = Puzzle::from(&[[-1; 10]; 10]);
         remember_facts(&mut h, &mut edges, &threes_ortho, &p, 3, 4);
         assert_eq!(HashMap::from([(44, true), (34, true), (147, false)]), h);
         h.clear();
@@ -231,31 +228,27 @@ mod test {
         assert_eq!(HashMap::from([(0, true), (10, true), (110, false)]), h);
     }
 
-    const EDGES3X3: [Edge; 24] = [
-        // Horizontal edges
-        Edge::Empty, Edge::Unknown, Edge::Empty,
-        Edge::Unknown, Edge::Empty, Edge::Empty,
-        Edge::Empty, Edge::Unknown, Edge::Empty,
-        Edge::Empty, Edge::Empty, Edge::Unknown,
-        // Vertical edges
-        Edge::Filled, Edge::Any, Edge::Any, Edge::Any,
-        Edge::Any, Edge::Filled, Edge::Any, Edge::Any,
-        Edge::Any, Edge::Any, Edge::Filled, Edge::Filled,
-    ];
+    fn edges3x3() -> Vec<Edge> {
+        Puzzle::edges(
+            &[
+                [Edge::Empty, Edge::Unknown, Edge::Empty],
+                [Edge::Unknown, Edge::Empty, Edge::Empty],
+                [Edge::Empty, Edge::Unknown, Edge::Empty],
+                [Edge::Empty, Edge::Empty, Edge::Unknown]],
+            // Vertical edges
+            &[
+                [Edge::Filled, Edge::Any, Edge::Any, Edge::Any],
+                [Edge::Any, Edge::Filled, Edge::Any, Edge::Any],
+                [Edge::Any, Edge::Any, Edge::Filled, Edge::Filled]]).unwrap()
+    }
 
     fn puzzle3x3() -> Puzzle {
-        Puzzle {
-            cells: vec![vec![1, 2, 3],
-                        vec![3, 1, 2],
-                        vec![-1, 3, 2]],
-            xsize: 3,
-            ysize: 3,
-        }
+        Puzzle::from(&[[1, 2, 3], [3, 1, 2], [-1, 3, 2]])
     }
 
     #[test]
     fn edge_vertical_window_simple() {
-        assert_eq!(vertical_edge_window(&puzzle3x3(), EDGES3X3.as_slice(), 0, 0),
+        assert_eq!(vertical_edge_window(&puzzle3x3(), edges3x3().as_slice(), 0, 0),
                    Verticals::from([
                        [Edge::OutOfBounds, Edge::OutOfBounds],
                        [Edge::Filled, Edge::Any],
@@ -264,7 +257,7 @@ mod test {
 
     #[test]
     fn edge_horizontal_window_simple() {
-        assert_eq!(horizontal_edge_window(&puzzle3x3(), EDGES3X3.as_slice(), 0, 0),
+        assert_eq!(horizontal_edge_window(&puzzle3x3(), edges3x3().as_slice(), 0, 0),
                    Horizontals::from([
                        [Edge::OutOfBounds, Edge::Empty, Edge::Unknown],
                        [Edge::OutOfBounds, Edge::Unknown, Edge::Empty]]))

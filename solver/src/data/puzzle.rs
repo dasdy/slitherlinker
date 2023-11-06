@@ -1,7 +1,8 @@
-
+use crate::data::pattern::Edge;
 use crate::parse::Cell;
 
-pub type Edge = bool;
+#[derive(Debug, Clone)]
+pub struct EdgeCreateError;
 
 #[derive(Debug, Clone)]
 pub struct Puzzle {
@@ -11,6 +12,29 @@ pub struct Puzzle {
 }
 
 impl Puzzle {
+    pub fn from<const W: usize, const H: usize>(cells: &[[Cell; W]; H]) -> Puzzle {
+        Puzzle {
+            xsize: W,
+            ysize: H,
+            cells: cells.iter().map(|row| row.to_vec()).collect(),
+        }
+    }
+
+    pub fn edges<const W1: usize, const H1: usize, const W2: usize, const H2: usize>(
+        horizontals: &[[Edge; W1]; H1],
+        verticals: &[[Edge; W2]; H2],
+    ) -> Result<Vec<Edge>, EdgeCreateError> {
+        if W1 + 1 != W2 || H1 != H2 + 1 || W1 < 1 || H1 < 1 || W2 < 1 || H2 < 1 {
+            Err(EdgeCreateError {})
+        } else {
+            let mut result = vec![];
+
+            horizontals.iter().for_each(|row| result.extend_from_slice(row));
+            verticals.iter().for_each(|row| result.extend_from_slice(row));
+
+            Ok(result)
+        }
+    }
     pub fn edge_ix(&self, i: usize, j: usize, is_horizontal: bool) -> usize {
         if is_horizontal {
             i * self.xsize + j
@@ -133,24 +157,17 @@ impl Puzzle {
 #[cfg(test)]
 mod test {
     use super::Puzzle;
+
     #[test]
     fn test_indices_2() {
-        let p = Puzzle {
-            cells: vec![],
-            xsize: 2,
-            ysize: 2,
-        };
+        let p = Puzzle::from(&[[-1; 2]; 2]);
         let e = p.edges_around_cell(1, 1);
         assert_eq!(e, (3, 5, 10, 11));
     }
 
     #[test]
     fn test_indices_10() {
-        let p = Puzzle {
-            cells: vec![],
-            xsize: 10,
-            ysize: 10,
-        };
+        let p = Puzzle::from(&[[-1; 10]; 10]);
         let e = p.edges_around_cell(9, 9);
         assert_eq!(e, (99, 109, 218, 219));
 
@@ -160,11 +177,7 @@ mod test {
 
     #[test]
     fn test_lines_around_0() {
-        let p = Puzzle {
-            cells: vec![],
-            xsize: 2,
-            ysize: 2,
-        };
+        let p = Puzzle::from(&[[-1; 2]; 2]);
         let e = p.edges_around_edge(0);
         assert_eq!(e, [1, 6, 7]);
 
@@ -204,11 +217,7 @@ mod test {
 
     #[test]
     fn test_edges_around_point() {
-        let p = Puzzle {
-            cells: vec![],
-            xsize: 2,
-            ysize: 2,
-        };
+        let p = Puzzle::from(&[[-1; 2]; 2]);
 
         let e = p.edges_around_point(0, 0);
         assert_eq!(e, [6, 0]);
