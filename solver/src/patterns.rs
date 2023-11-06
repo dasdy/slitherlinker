@@ -9,7 +9,7 @@ use crate::data::pattern::PatternSolution;
 use crate::data::pattern::Verticals;
 use crate::data::puzzle::Puzzle;
 
-use crate::data::solution::_format_edges;
+use crate::data::solution::format_puzzle;
 
 /// Facts are values for edges that we can deduce using patterns.
 /// For example, if there are two orthogonally-connected '3' cells, they MUST contain edges
@@ -59,7 +59,7 @@ pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
                                 base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
                             }
 
-                            println!("after this step:\n{}", _format_edges(puzzle, &base_edges));
+                            println!("after this step:\n{}", format_puzzle(puzzle, &base_edges));
                         }
                     };
                 }

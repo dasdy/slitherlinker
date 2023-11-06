@@ -3,11 +3,11 @@ use std::{
     ops::{Not, Sub},
 };
 use std::collections::HashMap;
-use crate::adapter::SlitherlinkerFormula;
+use crate::adapter::{SlitherlinkerFormula, SlitherlinkerLit};
 use crate::parse::Cell;
 use crate::data::pattern::Edge;
 use crate::data::puzzle::Puzzle;
-use crate::data::solution::_format_edges;
+use crate::data::solution::{format_puzzle, Solution};
 use crate::patterns::find_facts;
 
 pub fn loop_two<T>(a: T, b: T) -> Vec<Vec<T>>
@@ -47,7 +47,7 @@ pub fn loop_four<T>(a: T, b: T, c: T, d: T) -> Vec<Vec<T>>
 
 pub fn clause_zero<T>(edges: (T, T, T, T)) -> Vec<Vec<T>>
     where
-        T: Not<Output=T> + Copy,
+        T: Not<Output=T>,
 {
     vec![
         vec![!edges.0],
@@ -146,7 +146,9 @@ pub fn single_loop(puzzle: &Puzzle, edges: &[Edge]) -> bool {
     all_edge_indices.sub(&visited_edges).is_empty()
 }
 
-pub fn cell_clauses<T>(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>)
+pub fn cell_clauses<T: SlitherlinkerLit>(
+    p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>,
+)
     where
         T: Not<Output=T> + Copy, {
     for i in 0..p.xsize {
@@ -180,15 +182,14 @@ pub fn cell_clauses<T>(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut i
 
             // println!("cell ({condition} [{i}][{j}]): {:?}", v);
             for c in v {
-                // formula.add_clause(c);
                 formula.append_clause(c);
             }
         }
     }
 }
 
-// TODO rewrite this using sprl solver or something like that i dunno
-pub fn edge_clauses<T>(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>)
+pub fn edge_clauses<T: SlitherlinkerLit>(
+    p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>)
     where
         T: Not<Output=T> + Copy, {
     for i in 0..=p.xsize {
@@ -225,7 +226,7 @@ pub fn edge_clauses<T>(p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut i
 /// 2. Find "facts" using patterns (only if pre_solve is true) as hashmap <edge-index: value>
 /// 3. Use facts and cell-edge input to mutate input boolean formula
 /// 4. Return the "base edges" vector - basically a materialized facts hashmap
-pub fn solve_form_conditions<T>(
+pub fn solve_form_conditions<T: SlitherlinkerLit + Copy>(
     grid: Vec<Vec<Cell>>, pre_solve: bool, formula: &mut impl SlitherlinkerFormula<T>,
 ) -> (Puzzle, HashMap<usize, bool>, Vec<Edge>) where
     T: Not<Output=T> + Copy, {
@@ -249,14 +250,46 @@ pub fn solve_form_conditions<T>(
         base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
     }
 
-    println!("After simplify:\n{}", _format_edges(&p, &base_edges));
+    println!("After simplify:\n{}", format_puzzle(&p, &base_edges));
 
     for (&k, &v) in facts.iter() {
         let l = formula.pure_lit(k);
-        formula.append_clause(vec![if v { l } else { !l }]);
+        formula.append_clause(vec![if v { l } else { l.invert() }]);
     }
 
     cell_clauses(&p, &facts, formula);
     edge_clauses(&p, &facts, formula);
     (p, facts, base_edges)
+}
+
+/// Handle OK result from solver
+/// Two cases are possible: if the solution is a single loop, add it to solutions list
+/// If not, save it as "last solution" and return as non-empty option
+/// In any case, make the resulting solution a new formula for iterative solve
+/// so that we can look for next better solutions (negate everything in this one to get new ones)
+pub fn handle_ok<T: SlitherlinkerLit>(puzzle: &Puzzle,
+                                      facts: &HashMap<usize, bool>,
+                                      base_edges: &[Edge],
+                                      solutions: &mut Vec<Solution>,
+                                      solution_vector: &[T]) -> (Vec<T>, Option<Solution>) {
+    let edges: Vec<Edge> = solution_vector
+        .iter()
+        .map(|x| x.to_edge())
+        .collect();
+    let solution = Solution {
+        puzzle: puzzle.clone(),
+        edges: edges.clone(),
+        edges_pre_solve: base_edges.to_vec(),
+        facts: facts.clone(),
+    };
+    let mut last_solution = None;
+    if single_loop(puzzle, &edges) {
+        println!("WIN! found single-loop solution!");
+        solutions.push(solution);
+    } else {
+        last_solution = Some(solution);
+    }
+
+    let new_clause: Vec<T> = solution_vector.iter().map(|l| l.invert()).collect();
+    (new_clause, last_solution)
 }

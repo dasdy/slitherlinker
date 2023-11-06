@@ -1,20 +1,20 @@
-use varisat::{CnfFormula, ExtendFormula, Lit, Solver};
+use varisat::{CnfFormula, ExtendFormula, Solver};
 use crate::data::pattern::Edge;
 use crate::data::solution::Solution;
 use crate::parse::Cell;
-use crate::solve_common::{single_loop, solve_form_conditions};
+use crate::solve_common::{handle_ok, solve_form_conditions};
 
 pub fn solve(grid: Vec<Vec<Cell>>, pre_solve: bool) -> Option<Vec<Solution>> {
     let mut formula = CnfFormula::new();
 
 
-    let (p, facts, base_edges) = solve_form_conditions(
+    let (puzzle, facts, base_edges) = solve_form_conditions(
         grid, pre_solve, &mut formula);
 
     let mut s = Solver::default();
     s.add_formula(&formula);
 
-    let mut sols = vec![];
+    let mut solutions = vec![];
     let mut counter = 0;
     let mut last_solution = None;
     println!("facts found: {}", facts.len());
@@ -24,30 +24,15 @@ pub fn solve(grid: Vec<Vec<Cell>>, pre_solve: bool) -> Option<Vec<Solution>> {
             println!("attempt {counter}");
         }
         if has_solutions {
-            let m = s.model().unwrap();
-            let edges: Vec<Edge> = m
-                .iter()
-                .map(|&x| {
-                    if x.is_positive() {
-                        Edge::Filled
-                    } else {
-                        Edge::Empty
-                    }
-                })
-                .collect();
-            let solution = Solution {
-                puzzle: p.clone(),
-                edges: edges.clone(),
-                edges_pre_solve: base_edges.clone(),
-                facts: facts.clone(),
-            };
-            if single_loop(&p, &edges) {
-                println!("WIN! found single-loop solution! ");
-                sols.push(solution);
-            } else {
-                last_solution = Some(solution);
-            }
-            let new_clause: Vec<Lit> = m.iter().map(|&l| !l).collect();
+            let current_solution = s.model().unwrap();
+            let (new_clause, approx_solution) = handle_ok(
+                &puzzle,
+                &facts,
+                &base_edges,
+                &mut solutions,
+                current_solution.as_slice(),
+            );
+            if approx_solution.is_some() { last_solution = approx_solution }
             s.add_clause(&new_clause);
         } else {
             println!("No more solutions!");
@@ -55,14 +40,14 @@ pub fn solve(grid: Vec<Vec<Cell>>, pre_solve: bool) -> Option<Vec<Solution>> {
         }
         counter += 1;
     }
-    if sols.is_empty() {
+    if solutions.is_empty() {
         println!("no proper solutions, well here's last thing:");
         match last_solution {
-            Some(s) => sols.push(s),
+            Some(s) => solutions.push(s),
             None => println!("oh well"),
         };
     }
-    Some(sols)
+    Some(solutions)
 }
 
 #[cfg(test)]
@@ -115,5 +100,14 @@ mod test {
                        ],
                    ).unwrap()
         );
+    }
+
+    #[test]
+    fn handles_bad_puzzle() {
+        let s = solve(
+            vec![vec![0, 0], vec![0, 2]], false);
+
+        assert!(s.is_some());
+        assert_eq!(s.unwrap().len(), 0);
     }
 }

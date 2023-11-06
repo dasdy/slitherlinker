@@ -1,12 +1,8 @@
-use std::collections::HashMap;
 use splr::solver::*;
-
-use crate::adapter::{SplrRules};
-use crate::data::pattern::Edge;
-use crate::data::puzzle::Puzzle;
-use crate::data::solution::{Solution};
+use crate::adapter::SplrRules;
+use crate::data::solution::Solution;
 use crate::parse::Cell;
-use crate::solve_common::{single_loop, solve_form_conditions};
+use crate::solve_common::{handle_ok, solve_form_conditions};
 
 pub fn solve_splr(grid: Vec<Vec<Cell>>, pre_solve: bool) -> Option<Vec<Solution>> {
     let mut formula: SplrRules = SplrRules::new();
@@ -61,49 +57,11 @@ pub fn solve_splr(grid: Vec<Vec<Cell>>, pre_solve: bool) -> Option<Vec<Solution>
     Some(solutions)
 }
 
-/// Handle OK result from solver
-/// Two cases are possible: if the solution is a single loop, add it to solutions list
-/// If not, save it as "last solution" and return as non-empty option
-/// In any case, make the resulting solution a new formula for iterative solve
-/// so that we can look for next better solutions (negate everything in this one to get new ones)
-fn handle_ok(puzzle: &Puzzle,
-             facts: &HashMap<usize, bool>,
-             base_edges: &[Edge],
-             solutions: &mut Vec<Solution>,
-             solution_vector: &[i32]) -> (Vec<i32>, Option<Solution>) {
-    let edges: Vec<Edge> = solution_vector
-        .iter()
-        .map(|&x| {
-            if x.is_positive() {
-                Edge::Filled
-            } else {
-                Edge::Empty
-            }
-        })
-        .collect();
-    let solution = Solution {
-        puzzle: puzzle.clone(),
-        edges: edges.clone(),
-        edges_pre_solve: base_edges.to_vec(),
-        facts: facts.clone(),
-    };
-    let mut last_solution = None;
-    if single_loop(&puzzle, &edges) {
-        println!("WIN! found single-loop solution! ");
-        solutions.push(solution);
-    } else {
-        last_solution = Some(solution);
-    }
-
-    let new_clause: Vec<i32> = solution_vector.iter().map(|&l| -l).collect();
-    (new_clause, last_solution)
-}
-
 #[cfg(test)]
 mod test {
+    use crate::data::pattern::Edge;
     use crate::data::puzzle::Puzzle;
     use super::solve_splr;
-    use super::Edge;
 
     #[test]
     fn solves_simplest_2x2() {
@@ -146,5 +104,14 @@ mod test {
                        &[[Edge::Filled, Edge::Empty, Edge::Filled],
                            [Edge::Empty, Edge::Filled, Edge::Filled]],
                    ).unwrap());
+    }
+
+    #[test]
+    fn handles_bad_puzzle() {
+        let s = solve_splr(
+            vec![vec![0, 0], vec![0, 2]], false);
+
+        assert!(s.is_some());
+        assert_eq!(s.unwrap().len(), 0);
     }
 }
