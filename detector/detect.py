@@ -11,6 +11,7 @@ from skimage.morphology import remove_small_objects
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+import itertools
 import matplotlib.pyplot as plt
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -150,7 +151,8 @@ def prepare_digit(cell, cell_w, cell_h, debug, small_treshold, gray_treshold):
 
 def get_not_empty_cells(image, x_size, y_size, debug, small_treshold, gray_treshold):
     h, w = image.shape
-    print(f'Image shape: {image.shape}')
+    if debug:
+        print(f'Image shape: {image.shape}')
     cell_w, cell_h = int(w / x_size), int(h / y_size)
     indices = []
     for i in range(y_size):
@@ -190,7 +192,7 @@ def recognize_digits(warped, non_empty, x_size, y_size, debug, small_treshold, g
     for i, j in non_empty:
         sub_img = warped[cell_h * i : cell_h * (i + 1), cell_w * j : cell_w * (j + 1)]
         sub_img = prepare_digit(sub_img, cell_w, cell_h, debug, small_treshold, gray_treshold)
-        pred_vector = model.predict(np.array([sub_img > 0]))[0]
+        pred_vector = model.predict(np.array([sub_img > 0]), verbose=debug)[0]
         prediction = np.argmax(pred_vector)
         if debug:
             print(f'Prediction {i,j}: {prediction} ({pred_vector[prediction]})')
@@ -220,6 +222,28 @@ def draw_grid_puzzle(img, x_size, y_size):
     del draw
     im.show()
 
+def serialize_slitherlinker_puzzle(matrix):
+    xs, ys = matrix.shape
+    # flatten matrix
+    flat = matrix.reshape(xs * ys)
+    prefix = f'{xs}x{ys}:'
+    # groupby 0s that are next to each other
+    groups = []
+    for k, g in itertools.groupby(flat):
+        groups.append(list(g))
+
+    # serialize
+    res = prefix
+    for g in groups:
+        head = g[0]
+        if head == -1:
+            count = len(g)
+            res += chr(ord('a') - 1 + count)
+        else:
+            res += str(head) * len(g)
+    return res
+
+
 
 @click.command()
 @click.option('--img', required=True)
@@ -241,17 +265,19 @@ def detect(img, x_size, y_size, debug, zoom, small_treshold, gray_treshold):
     non_empty = get_not_empty_cells(warped, x_size, y_size, False, small_treshold, gray_treshold)
 
     detected_digits = recognize_digits(warped, non_empty, x_size, y_size, debug, small_treshold, gray_treshold)
-    print(f'Not empty cells at: {non_empty}')
-    print(f'Digits are: {detected_digits}')
+    if debug:
+        print(f'Not empty cells at: {non_empty}')
+        print(f'Digits are: {detected_digits}')
 
     result = np.ones((y_size, x_size), dtype=np.int8) * -1
 
     for (i, j), d in zip(non_empty, detected_digits):
         result[i][j] = d
 
-    print(result)
+    if debug:
+        print(result.tolist())
 
-    # TODO format this in a way that solver can accept
+    print("Visual rep of the puzzle:")
     for i in range(y_size):
         for j in range(x_size):
             if result[i][j] < 0:
@@ -259,6 +285,8 @@ def detect(img, x_size, y_size, debug, zoom, small_treshold, gray_treshold):
             else:
                 print(f'{result[i][j]}', end=' ')
         print()
+
+    print("Puzzle Code: ", serialize_slitherlinker_puzzle(result))
 
 
 if __name__ == "__main__":

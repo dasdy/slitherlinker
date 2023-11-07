@@ -21,6 +21,7 @@ tensorflow = "^2.14.0"
 [tool.poetry.group.dev.dependencies]
 jupyterlab = "^4.0.8"
 tqdm = "^4.66.1"
+ipython = "^8.17.2"
 
 [build-system]
 requires = ["poetry>=0.12"]
