@@ -6,19 +6,18 @@ from imutils.perspective import four_point_transform
 import numpy as np
 from PIL import Image
 from PIL import ImageDraw
-from scipy.ndimage.measurements import center_of_mass
+from scipy.ndimage import center_of_mass
 from skimage.morphology import remove_small_objects
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+import matplotlib.pyplot as plt
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 tf.get_logger().setLevel('ERROR')
 
 
-def print_img(im, figsize=(15, 15)):
-    # plt.figure(figsize=figsize)
-    # plt.imshow(im, cmap='gray')
+def print_img(im, figsize=(5,5)):
     cv2.namedWindow("output", cv2.WINDOW_NORMAL)
     cv2.imshow('output', im)
     cv2.waitKey(0)
@@ -34,10 +33,12 @@ def crop_img(img, scale=1.0):
     return img_cropped
 
 
-def find_puzzle(image, zoom, debug=False):
+def find_puzzle(image, *, zoom=0.95, gaussian_kernel=21, dilate_kernel=1, debug=False):
     # convert the image to grayscale and blur it slightly
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (41, 41), 4)
+    # TODO parameterize kernel sizes - we need ~40-ish blur, 5 dilate for photos
+    # and ~20-ish blur, 1 dilate for screenshots
+    blurred = cv2.GaussianBlur(gray, (gaussian_kernel, gaussian_kernel), 4)
     # apply adaptive thresholding and then invert the threshold map
     thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     thresh = cv2.bitwise_not(thresh)
@@ -45,7 +46,7 @@ def find_puzzle(image, zoom, debug=False):
     # processing pipeline (in this case, thresholding)
     if debug:
         print_img(thresh)
-    dilated = cv2.dilate(thresh, kernel=np.ones((5, 5), np.uint8), iterations=4)
+    dilated = cv2.dilate(thresh, kernel=np.ones((dilate_kernel, dilate_kernel), np.uint8), iterations=4)
     if debug:
         print_img(dilated)
     cnts = cv2.findContours(dilated.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
@@ -67,9 +68,8 @@ def find_puzzle(image, zoom, debug=False):
             puzzleHs.append(hierarchy)
             # break
         # if the puzzle contour is empty then our script could not find
-    # the outline of the Sudoku puzzle so raise an error
     if puzzleCnt is None:
-        raise Exception(("Could not find Sudoku puzzle outline. " "Try debugging your thresholding and contour steps."))
+        raise Exception(("Could not find Slitherlinker puzzle outline. " "Try debugging your thresholding and contour steps."))
     # check to see if we are visualizing the outline of the detected
     # Sudoku puzzle
     if debug:
@@ -182,6 +182,7 @@ def get_model():
 
 
 def recognize_digits(warped, non_empty, x_size, y_size, debug, small_treshold, gray_treshold):
+    fig, axs = plt.subplots(6,6, figsize=(10, 10))
     model = get_model()
     h, w = warped.shape
     cell_w, cell_h = int(w / x_size), int(h / y_size)
@@ -189,15 +190,16 @@ def recognize_digits(warped, non_empty, x_size, y_size, debug, small_treshold, g
     for i, j in non_empty:
         sub_img = warped[cell_h * i : cell_h * (i + 1), cell_w * j : cell_w * (j + 1)]
         sub_img = prepare_digit(sub_img, cell_w, cell_h, debug, small_treshold, gray_treshold)
-        if debug:
-            print_img(sub_img / 255.0, figsize=None)
         pred_vector = model.predict(np.array([sub_img > 0]))[0]
         prediction = np.argmax(pred_vector)
         if debug:
             print(f'Prediction {i,j}: {prediction} ({pred_vector[prediction]})')
-            print_img(sub_img)
+            axs[i][j].imshow(sub_img / 255.)
         res.append(prediction)
 
+    if debug:
+        plt.draw()
+        plt.show()
     return res
 
 
@@ -233,7 +235,7 @@ def detect(img, x_size, y_size, debug, zoom, small_treshold, gray_treshold):
         print('debug. initial image:')
         print_img(im)
 
-    puzzle, warped = find_puzzle(im, zoom, debug)
+    puzzle, warped = find_puzzle(im, zoom=zoom, debug=debug)
     if debug:
         draw_grid_puzzle(warped, x_size, y_size)
     non_empty = get_not_empty_cells(warped, x_size, y_size, False, small_treshold, gray_treshold)
@@ -249,6 +251,7 @@ def detect(img, x_size, y_size, debug, zoom, small_treshold, gray_treshold):
 
     print(result)
 
+    # TODO format this in a way that solver can accept
     for i in range(y_size):
         for j in range(x_size):
             if result[i][j] < 0:
