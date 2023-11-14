@@ -271,7 +271,14 @@ impl PatternSolution {
     ) -> bool {
         for i in 0..horizontals.len() {
             for j in 0..horizontals[0].len() {
-                if !self.input.horizontals[i][j].matches(&horizontals[i][j]) {
+                let input_edge = self.input.horizontals[i][j];
+                if !input_edge.matches(&horizontals[i][j]) {
+                    return false;
+                }
+                let output_edge = self.output.horizontals[i][j];
+                if (output_edge == Edge::Empty || output_edge == Edge::Filled)
+                    && (horizontals[i][j] == Edge::Empty || horizontals[i][j] == Edge::Filled)
+                    && !output_edge.matches(&horizontals[i][j]) {
                     return false;
                 }
             }
@@ -281,11 +288,17 @@ impl PatternSolution {
                 if !self.input.verticals[i][j].matches(&verticals[i][j]) {
                     return false;
                 }
+                let output_edge = self.output.verticals[i][j];
+                if (output_edge == Edge::Empty || output_edge == Edge::Filled)
+                    && (verticals[i][j] == Edge::Empty || verticals[i][j] == Edge::Filled)
+                    && !output_edge.matches(&verticals[i][j]) {
+                    return false;
+                }
             }
         }
 
         for i in 0..cells.len() {
-            for j in 0..cells.len() {
+            for j in 0..cells[0].len() {
                 if !self.cells[i][j].matches(&cells[i][j]) {
                     return false;
                 }
@@ -297,8 +310,8 @@ impl PatternSolution {
 
 #[cfg(test)]
 pub mod test {
-
     use super::*;
+
     #[test]
     fn test_rotate_array() {
         let r = rot90(&[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]);
@@ -392,7 +405,7 @@ pub mod test {
         assert!(threes_ortho.try_match(
             &threes_ortho.cells,
             &threes_ortho.input.horizontals,
-            &threes_ortho.input.verticals
+            &threes_ortho.input.verticals,
         ));
 
         assert!(threes_ortho.try_match(
@@ -402,7 +415,7 @@ pub mod test {
                 [Cell::OutOfBounds, Cell::OutOfBounds, Cell::OutOfBounds],
             ],
             &threes_ortho.input.horizontals,
-            &threes_ortho.input.verticals
+            &threes_ortho.input.verticals,
         ));
 
         assert!(threes_ortho.try_match(
@@ -415,7 +428,7 @@ pub mod test {
                 [Edge::Empty, Edge::Empty],
                 [Edge::Empty, Edge::Empty],
                 [Edge::Empty, Edge::Empty],
-            ]
+            ],
         ));
     }
 
@@ -460,7 +473,7 @@ pub mod test {
 
         let test = PatternSolution {
             cells: threes_ortho.cells,
-            input:Pattern {
+            input: Pattern {
                 horizontals: [
                     [Edge::OutOfBounds, Edge::OutOfBounds, Edge::OutOfBounds],
                     [Edge::OutOfBounds, Edge::Filled, Edge::Empty],
@@ -469,9 +482,9 @@ pub mod test {
                     [Edge::OutOfBounds, Edge::OutOfBounds],
                     [Edge::OutOfBounds, Edge::OutOfBounds],
                     [Edge::Filled, Edge::Unknown],
-                ]
+                ],
             },
-            output: rs[0].output
+            output: rs[0].output,
         };
         println!("test data!:{test}");
 
@@ -486,7 +499,7 @@ pub mod test {
                 [Edge::OutOfBounds, Edge::OutOfBounds],
                 [Edge::OutOfBounds, Edge::OutOfBounds],
                 [Edge::Filled, Edge::Unknown],
-            ]
+            ],
         )));
     }
 
@@ -535,7 +548,7 @@ pub mod test {
                 [Edge::OutOfBounds, Edge::OutOfBounds],
                 [Edge::OutOfBounds, Edge::OutOfBounds],
                 [Edge::Filled, Edge::Unknown],
-            ]
+            ],
         )));
     }
 }

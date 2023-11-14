@@ -2,9 +2,9 @@ use crate::data::pattern::Cell;
 use crate::data::pattern::Edge;
 use crate::data::pattern::Pattern;
 use crate::data::pattern::PatternSolution;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
-pub fn patterns() -> HashMap<String, PatternSolution> {
+pub fn patterns() -> BTreeMap<String, PatternSolution> {
     let any_input = Pattern {
         horizontals: [[Edge::Any; 3]; 2],
         verticals: [[Edge::Any; 2]; 3],
@@ -497,7 +497,7 @@ pub fn patterns() -> HashMap<String, PatternSolution> {
         },
         input: Pattern {
             horizontals: [
-                [Edge::Any, Edge::Filled, Edge::Any],
+                [Edge::Unknown, Edge::Filled, Edge::Any],
                 [Edge::Any, Edge::Any, Edge::Any],
             ],
             verticals: [
@@ -663,7 +663,7 @@ pub fn patterns() -> HashMap<String, PatternSolution> {
         ],
     };
 
-    let mut r: HashMap<String, PatternSolution> = HashMap::new();
+    let mut r  = BTreeMap::new();
 
     push(&mut r, "two threes diagonally", &threes_corner);
     push(&mut r, "two with line incoming", &two_with_a_line);
@@ -692,7 +692,7 @@ pub fn patterns() -> HashMap<String, PatternSolution> {
     r
 }
 
-fn push(r: &mut HashMap<String, PatternSolution>, prefix: &str, pattern: &PatternSolution) {
+fn push(r: &mut BTreeMap<String, PatternSolution>, prefix: &str, pattern: &PatternSolution) {
     pattern.rotations().iter().enumerate().for_each(|(i, &p)| {
         r.insert(format!("{prefix}-{i}"), p);
     });

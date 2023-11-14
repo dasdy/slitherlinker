@@ -89,8 +89,10 @@ fn remember_facts(
             }
             if hor_j_ix >= 0 && (i + i_w) >= 0 && (hor_j_ix as usize) < puzzle.ysize {
                 let edge_ix = puzzle.edge_ix((i + i_w) as usize, hor_j_ix as usize, true);
-                facts_map.insert(edge_ix, hor_edge == Edge::Filled);
-                opts[edge_ix] = hor_edge;
+                if !facts_map.contains_key(&edge_ix) {
+                    facts_map.insert(edge_ix, hor_edge == Edge::Filled);
+                    opts[edge_ix] = hor_edge;
+                }
             }
         }
     }
@@ -109,8 +111,10 @@ fn remember_facts(
 
             if ver_ix >= 0 && j + j_w >= 0 && (ver_ix as usize) < puzzle.xsize {
                 let edge_ix = puzzle.edge_ix(ver_ix as usize, (j + j_w) as usize, false);
-                facts_map.insert(edge_ix, ver_edge == Edge::Filled);
-                opts[edge_ix] = ver_edge;
+                if !facts_map.contains_key(&edge_ix) {
+                    facts_map.insert(edge_ix, ver_edge == Edge::Filled);
+                    opts[edge_ix] = ver_edge;
+                }
             }
         }
     }
