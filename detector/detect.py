@@ -10,7 +10,7 @@ from scipy.ndimage import center_of_mass
 from skimage.morphology import remove_small_objects
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers
+from keras import layers
 import itertools
 import matplotlib.pyplot as plt
 
@@ -25,7 +25,7 @@ def print_img(im, figsize=(5,5)):
     cv2.destroyAllWindows()
 
 
-def crop_img(img, scale=1.0):
+def crop_image(img, scale=1.0):
     center_x, center_y = img.shape[1] / 2, img.shape[0] / 2
     width_scaled, height_scaled = img.shape[1] * scale, img.shape[0] * scale
     left_x, right_x = center_x - width_scaled / 2, center_x + width_scaled / 2
@@ -51,7 +51,6 @@ def find_puzzle(image, *, zoom=0.95, gaussian_kernel=21, dilate_kernel=1, debug=
     if debug:
         print_img(dilated)
     cnts = cv2.findContours(dilated.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
-    cnts_bak = cnts
     # cnts = imutils.grab_contours(cnts)
     cnts_sorted = sorted(zip(cnts[0], cnts[1][0]), key=lambda x: cv2.contourArea(x[0]), reverse=True)
     # initialize a contour that corresponds to the puzzle outline
@@ -84,8 +83,8 @@ def find_puzzle(image, *, zoom=0.95, gaussian_kernel=21, dilate_kernel=1, debug=
     if debug:
         print_img(warped)
 
-    puzzle = crop_img(puzzle, zoom)
-    warped = crop_img(warped, zoom)
+    puzzle = crop_image(puzzle, zoom)
+    warped = crop_image(warped, zoom)
 
     if debug:
         print_img(warped)
