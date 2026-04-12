@@ -25,7 +25,7 @@ def print_img(im, figsize=(5,5)):
     cv2.destroyAllWindows()
 
 
-def crop_image(img, scale=1.0):
+def crop_img(img, scale=1.0):
     center_x, center_y = img.shape[1] / 2, img.shape[0] / 2
     width_scaled, height_scaled = img.shape[1] * scale, img.shape[0] * scale
     left_x, right_x = center_x - width_scaled / 2, center_x + width_scaled / 2
@@ -83,8 +83,8 @@ def find_puzzle(image, *, zoom=0.95, gaussian_kernel=21, dilate_kernel=1, debug=
     if debug:
         print_img(warped)
 
-    puzzle = crop_image(puzzle, zoom)
-    warped = crop_image(warped, zoom)
+    puzzle = crop_img(puzzle, zoom)
+    warped = crop_img(warped, zoom)
 
     if debug:
         print_img(warped)

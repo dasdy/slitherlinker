@@ -198,6 +198,122 @@ impl Pattern {
 }
 
 impl PatternSolution {
+    /// Parse a `PatternSolution` from two compact string representations.
+    ///
+    /// Each string must have exactly 5 non-empty lines:
+    /// ```text
+    /// c v c v c   <- cell row (5 chars: cell, vert-edge, cell, vert-edge, cell)
+    /// h h h       <- horizontal edge row (3 chars)
+    /// c v c v c
+    /// h h h
+    /// c v c v c   <- bottom cell row (no edge row below)
+    /// ```
+    ///
+    /// Cell characters: `*`=Any, `0-3`=value, `B`=OutOfBounds, `.`=Nothing
+    /// Vertical edge chars (odd positions in cell rows): `*`=Any, `|`=Filled, `x`=Empty, `X`=EmptyStrict, `%`=OutOfBounds
+    /// Horizontal edge chars: `*`=Any, `-`=Filled, `x`=Empty, `X`=EmptyStrict, `%`=OutOfBounds
+    ///
+    /// The `output` string's cell characters are ignored; cells are taken from `input`.
+    pub fn parse(input: &str, output: &str) -> PatternSolution {
+        fn parse_cell(c: char) -> Cell {
+            match c {
+                '*' => Cell::Any,
+                '0' => Cell::Zero,
+                '1' => Cell::One,
+                '2' => Cell::Two,
+                '3' => Cell::Three,
+                'B' => Cell::OutOfBounds,
+                '.' => Cell::Nothing,
+                _ => panic!("Unknown cell char: {c:?}"),
+            }
+        }
+
+        fn parse_vert(c: char) -> Edge {
+            match c {
+                '*' => Edge::Any,
+                '|' => Edge::Filled,
+                'x' => Edge::Empty,
+                'X' => Edge::EmptyStrict,
+                '%' => Edge::OutOfBounds,
+                _ => panic!("Unknown vertical edge char: {c:?}"),
+            }
+        }
+
+        fn parse_horiz(c: char) -> Edge {
+            match c {
+                '*' => Edge::Any,
+                '-' => Edge::Filled,
+                'x' => Edge::Empty,
+                'X' => Edge::EmptyStrict,
+                '%' => Edge::OutOfBounds,
+                _ => panic!("Unknown horizontal edge char: {c:?}"),
+            }
+        }
+
+        fn parse_cell_row(line: &str) -> ([Cell; 3], [Edge; 2]) {
+            let chars: Vec<char> = line.chars().collect();
+            assert_eq!(chars.len(), 5, "Cell row must be 5 chars, got {:?}", line);
+            (
+                [
+                    parse_cell(chars[0]),
+                    parse_cell(chars[2]),
+                    parse_cell(chars[4]),
+                ],
+                [parse_vert(chars[1]), parse_vert(chars[3])],
+            )
+        }
+
+        fn parse_horiz_row(line: &str) -> [Edge; 3] {
+            let chars: Vec<char> = line.chars().collect();
+            assert_eq!(
+                chars.len(),
+                3,
+                "Horizontal edge row must be 3 chars, got {:?}",
+                line
+            );
+            [
+                parse_horiz(chars[0]),
+                parse_horiz(chars[1]),
+                parse_horiz(chars[2]),
+            ]
+        }
+
+        fn parse_str(s: &str) -> (CellWindow, Pattern) {
+            let lines: Vec<&str> = s.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+            assert_eq!(
+                lines.len(),
+                5,
+                "Pattern string must have 5 non-empty lines, got {}",
+                lines.len()
+            );
+            let (c0, v0) = parse_cell_row(lines[0]);
+            let h0 = parse_horiz_row(lines[1]);
+            let (c1, v1) = parse_cell_row(lines[2]);
+            let h1 = parse_horiz_row(lines[3]);
+            let (c2, v2) = parse_cell_row(lines[4]);
+            (
+                [
+                    [c0[0], c0[1], c0[2]],
+                    [c1[0], c1[1], c1[2]],
+                    [c2[0], c2[1], c2[2]],
+                ],
+                Pattern {
+                    horizontals: [h0, h1],
+                    verticals: [[v0[0], v0[1]], [v1[0], v1[1]], [v2[0], v2[1]]],
+                },
+            )
+        }
+
+        let (cells, input_pattern) = parse_str(input);
+        let (_, output_pattern) = parse_str(output);
+
+        PatternSolution {
+            cells,
+            input: input_pattern,
+            output: output_pattern,
+        }
+    }
+
     fn rot90(&self) -> PatternSolution {
         PatternSolution {
             cells: rot90(&self.cells),
@@ -278,7 +394,8 @@ impl PatternSolution {
                 let output_edge = self.output.horizontals[i][j];
                 if (output_edge == Edge::Empty || output_edge == Edge::Filled)
                     && (horizontals[i][j] == Edge::Empty || horizontals[i][j] == Edge::Filled)
-                    && !output_edge.matches(&horizontals[i][j]) {
+                    && !output_edge.matches(&horizontals[i][j])
+                {
                     return false;
                 }
             }
@@ -291,7 +408,8 @@ impl PatternSolution {
                 let output_edge = self.output.verticals[i][j];
                 if (output_edge == Edge::Empty || output_edge == Edge::Filled)
                     && (verticals[i][j] == Edge::Empty || verticals[i][j] == Edge::Filled)
-                    && !output_edge.matches(&verticals[i][j]) {
+                    && !output_edge.matches(&verticals[i][j])
+                {
                     return false;
                 }
             }
@@ -313,9 +431,52 @@ pub mod test {
     use super::*;
 
     #[test]
+    fn test_parse_two_threes_vertical() {
+        // Two vertically adjacent 3-cells: the horizontal edge between them must be filled
+        let p = PatternSolution::parse(
+            "**3**\n\
+             ***\n\
+             **3**\n\
+             ***\n\
+             *****",
+            "**3**\n\
+             *-*\n\
+             **3**\n\
+             ***\n\
+             *****",
+        );
+        assert_eq!(p.cells[0][1], Cell::Three);
+        assert_eq!(p.cells[1][1], Cell::Three);
+        assert_eq!(p.output.horizontals[0][1], Edge::Filled);
+        assert_eq!(p.output.horizontals[0][0], Edge::Any);
+        assert_eq!(p.output.horizontals[1][1], Edge::Any);
+        assert_eq!(p.input.horizontals, [[Edge::Any; 3]; 2]);
+    }
+
+    #[test]
+    fn test_parse_vertical_filled_edge() {
+        let p = PatternSolution::parse(
+            "3|3**\n\
+             ***\n\
+             *****\n\
+             ***\n\
+             *****",
+            "3|3**\n\
+             ***\n\
+             *****\n\
+             ***\n\
+             *****",
+        );
+        assert_eq!(p.cells[0][0], Cell::Three);
+        assert_eq!(p.cells[0][1], Cell::Three);
+        assert_eq!(p.input.verticals[0][0], Edge::Filled);
+        assert_eq!(p.output.verticals[0][0], Edge::Filled);
+    }
+
+    #[test]
     fn test_rotate_array() {
         let r = rot90(&[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]);
-        assert_eq!(r, [[9, 5, 1], [10, 6, 2], [11, 7, 3], [12, 8, 4]])
+        assert_eq!(r, [[9, 5, 1], [10, 6, 2], [11, 7, 3], [12, 8, 4]]);
     }
 
     #[test]
@@ -470,7 +631,6 @@ pub mod test {
             println!("{r}")
         }
 
-
         let test = PatternSolution {
             cells: threes_ortho.cells,
             input: Pattern {
@@ -487,7 +647,6 @@ pub mod test {
             output: rs[0].output,
         };
         println!("test data!:{test}");
-
 
         assert!(rs.iter().any(|p| p.try_match(
             &threes_ortho.cells,
