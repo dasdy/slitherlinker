@@ -158,10 +158,21 @@ fn window_safe_edge(
     j: isize,
     is_horizontal: bool,
 ) -> Edge {
-    if i < 0 || j < 0 || i as usize >= p.xsize || j as usize >= p.ysize {
+    if i < 0 || j < 0 {
         return Edge::OutOfBounds;
     }
-    edges[p.edge_ix(i as usize, j as usize, is_horizontal)]
+    let (ui, uj) = (i as usize, j as usize);
+    // Horizontal edges: i in [0, xsize], j in [0, ysize)
+    // Vertical edges:   i in [0, xsize), j in [0, ysize]
+    let out_of_bounds = if is_horizontal {
+        ui > p.xsize || uj >= p.ysize
+    } else {
+        ui >= p.xsize || uj > p.ysize
+    };
+    if out_of_bounds {
+        return Edge::OutOfBounds;
+    }
+    edges[p.edge_ix(ui, uj, is_horizontal)]
 }
 
 /// Make a window out of horizontal edges in the puzzle, with center at [i][j]
@@ -274,5 +285,71 @@ mod test {
             [Cell::OutOfBounds, Cell::One, Cell::Two],
             [Cell::OutOfBounds, Cell::Three, Cell::One],
         ]))
+    }
+
+    /// Regression test: boundary horizontal/vertical edges must not be misreported as
+    /// OutOfBounds, which would cause patterns to fire incorrectly at the grid edge.
+    ///
+    /// For a 10×10 puzzle:
+    ///   - Horizontal edges exist for i in [0, xsize=10], j in [0, ysize=10).
+    ///     Before the fix, window_safe_edge returned OutOfBounds for i == xsize (the
+    ///     bottom row of horizontal edges), which made patterns treating OutOfBounds as
+    ///     Empty fire falsely and mark edge 109 (bottom-right horizontal) as Empty.
+    ///   - Vertical edges exist for i in [0, xsize=10), j in [0, ysize=10].
+    ///     Analogously, j == ysize was reported as OutOfBounds.
+    #[test]
+    fn test_boundary_edges_not_misreported_as_oob() {
+        let p = Puzzle::from(&[[-1i8; 10]; 10]);
+        let edges = vec![Edge::Unknown; (1 + p.xsize) * p.ysize + p.xsize * (1 + p.ysize)];
+
+        // Bottom row of horizontal edges (i == xsize): must NOT be OutOfBounds.
+        for j in 0..p.ysize as isize {
+            let got = window_safe_edge(&p, &edges, p.xsize as isize, j, true);
+            assert_eq!(got, Edge::Unknown,
+                "horizontal edge at i=xsize={}, j={j} should be Unknown, not OutOfBounds", p.xsize);
+        }
+        // Row beyond the last is out of bounds.
+        assert_eq!(window_safe_edge(&p, &edges, p.xsize as isize + 1, 0, true), Edge::OutOfBounds);
+
+        // Rightmost column of vertical edges (j == ysize): must NOT be OutOfBounds.
+        for i in 0..p.xsize as isize {
+            let got = window_safe_edge(&p, &edges, i, p.ysize as isize, false);
+            assert_eq!(got, Edge::Unknown,
+                "vertical edge at i={i}, j=ysize={} should be Unknown, not OutOfBounds", p.ysize);
+        }
+        // Column beyond the last is out of bounds.
+        assert_eq!(window_safe_edge(&p, &edges, 0, p.ysize as isize + 1, false), Edge::OutOfBounds);
+    }
+
+    /// Regression test: find_facts must not produce wrong deductions on the default puzzle.
+    ///
+    /// Before the fix, the bottom-right horizontal edge (index 109, i=10 j=9) and the
+    /// rightmost vertical edge of the last row (index 219, i=9 j=10) were incorrectly
+    /// marked as Empty because window_safe_edge mis-reported them as OutOfBounds.
+    #[test]
+    fn test_no_wrong_boundary_deductions_on_default_puzzle() {
+        use crate::parse::from_string;
+
+        let grid = from_string(
+            "10x10d0:b1a2a22a32a1b22b2b2a23b212a22d222a31b2c12c2d331d013e1a2c2122a1b2a3b13a02a",
+        ).unwrap();
+        let xsize = grid.len();
+        let ysize = grid[0].len();
+        let p = Puzzle { cells: grid, xsize, ysize };
+
+        let facts = find_facts(&p);
+
+        // Both edges are Filled in the true (SAT) solution.  The pre-solve must not
+        // assert them as Empty (false) — that would make the SAT phase reach UNSAT.
+        assert_ne!(
+            facts.get(&109),
+            Some(&false),
+            "edge 109 (bottom-right horizontal, i=10 j=9) must not be deduced as Empty"
+        );
+        assert_ne!(
+            facts.get(&219),
+            Some(&false),
+            "edge 219 (rightmost vertical of last row, i=9 j=10) must not be deduced as Empty"
+        );
     }
 }
