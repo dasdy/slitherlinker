@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::data::baked_in_patterns::patterns;
+use crate::data::baked_in_patterns::patterns_from_str;
 use crate::data::pattern::Cell;
 use crate::data::pattern::CellWindow;
 use crate::data::pattern::Edge;
@@ -22,7 +23,8 @@ pub fn find_facts(puzzle: &Puzzle, prefix: &str) -> HashMap<usize, bool> {
     let prefix = prefix;
     let mut facts_map = HashMap::new();
 
-    let patterns = patterns();
+    // let patterns = patterns();
+    let patterns = patterns_from_str();
 
     let horizontal_edge_count = (1 + puzzle.xsize) * puzzle.ysize;
     let vertical_edge_count = puzzle.xsize * (1 + puzzle.ysize);
@@ -45,20 +47,20 @@ pub fn find_facts(puzzle: &Puzzle, prefix: &str) -> HashMap<usize, bool> {
                     let _ = pattern_name;
                     if pattern_solution.try_match(&window, &hor_edges, &vert_edges) {
                         let current_size = facts_map.len();
-                        remember_facts(&mut facts_map,
-                                       &mut options,
-                                       pattern_solution,
-                                       puzzle,
-                                       i, j,
+                        remember_facts(
+                            &mut facts_map,
+                            &mut options,
+                            pattern_solution,
+                            puzzle,
+                            i,
+                            j,
                         );
                         if facts_map.len() > current_size {
                             // println!("{prefix}found new {pattern_name} at {i} {j}");
                             found_facts = true;
 
-
-                            let mut base_edges = vec![
-                                Edge::Unknown; horizontal_edge_count + vertical_edge_count
-                            ];
+                            let mut base_edges =
+                                vec![Edge::Unknown; horizontal_edge_count + vertical_edge_count];
                             for (&k, &v) in facts_map.iter() {
                                 base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
                             }
@@ -155,13 +157,7 @@ fn cell_window(p: &Puzzle, i: isize, j: isize) -> CellWindow {
 /// Similar to regular fetching edge by index from edges list, but in case of outbound
 /// returns Edge::OutOfBounds value. Useful for creating windows over puzzle that are reaching
 /// over the edge of puzzle.
-fn window_safe_edge(
-    p: &Puzzle,
-    edges: &[Edge],
-    i: isize,
-    j: isize,
-    is_horizontal: bool,
-) -> Edge {
+fn window_safe_edge(p: &Puzzle, edges: &[Edge], i: isize, j: isize, is_horizontal: bool) -> Edge {
     if i < 0 || j < 0 {
         return Edge::OutOfBounds;
     }
@@ -253,12 +249,16 @@ mod test {
                 [Edge::Empty, Edge::Unknown, Edge::Empty],
                 [Edge::Unknown, Edge::Empty, Edge::Empty],
                 [Edge::Empty, Edge::Unknown, Edge::Empty],
-                [Edge::Empty, Edge::Empty, Edge::Unknown]],
+                [Edge::Empty, Edge::Empty, Edge::Unknown],
+            ],
             // Vertical edges
             &[
                 [Edge::Filled, Edge::Any, Edge::Any, Edge::Any],
                 [Edge::Any, Edge::Filled, Edge::Any, Edge::Any],
-                [Edge::Any, Edge::Any, Edge::Filled, Edge::Filled]]).unwrap()
+                [Edge::Any, Edge::Any, Edge::Filled, Edge::Filled],
+            ],
+        )
+        .unwrap()
     }
 
     fn puzzle3x3() -> Puzzle {
@@ -267,28 +267,37 @@ mod test {
 
     #[test]
     fn edge_vertical_window_simple() {
-        assert_eq!(vertical_edge_window(&puzzle3x3(), edges3x3().as_slice(), 0, 0),
-                   Verticals::from([
-                       [Edge::OutOfBounds, Edge::OutOfBounds],
-                       [Edge::Filled, Edge::Any],
-                       [Edge::Any, Edge::Filled]]))
+        assert_eq!(
+            vertical_edge_window(&puzzle3x3(), edges3x3().as_slice(), 0, 0),
+            Verticals::from([
+                [Edge::OutOfBounds, Edge::OutOfBounds],
+                [Edge::Filled, Edge::Any],
+                [Edge::Any, Edge::Filled]
+            ])
+        )
     }
 
     #[test]
     fn edge_horizontal_window_simple() {
-        assert_eq!(horizontal_edge_window(&puzzle3x3(), edges3x3().as_slice(), 0, 0),
-                   Horizontals::from([
-                       [Edge::OutOfBounds, Edge::Empty, Edge::Unknown],
-                       [Edge::OutOfBounds, Edge::Unknown, Edge::Empty]]))
+        assert_eq!(
+            horizontal_edge_window(&puzzle3x3(), edges3x3().as_slice(), 0, 0),
+            Horizontals::from([
+                [Edge::OutOfBounds, Edge::Empty, Edge::Unknown],
+                [Edge::OutOfBounds, Edge::Unknown, Edge::Empty]
+            ])
+        )
     }
 
     #[test]
     fn test_cell_window() {
-        assert_eq!(cell_window(&puzzle3x3(), 0, 0), CellWindow::from([
-            [Cell::OutOfBounds, Cell::OutOfBounds, Cell::OutOfBounds],
-            [Cell::OutOfBounds, Cell::One, Cell::Two],
-            [Cell::OutOfBounds, Cell::Three, Cell::One],
-        ]))
+        assert_eq!(
+            cell_window(&puzzle3x3(), 0, 0),
+            CellWindow::from([
+                [Cell::OutOfBounds, Cell::OutOfBounds, Cell::OutOfBounds],
+                [Cell::OutOfBounds, Cell::One, Cell::Two],
+                [Cell::OutOfBounds, Cell::Three, Cell::One],
+            ])
+        )
     }
 
     /// Regression test: boundary horizontal/vertical edges must not be misreported as
@@ -309,20 +318,34 @@ mod test {
         // Bottom row of horizontal edges (i == xsize): must NOT be OutOfBounds.
         for j in 0..p.ysize as isize {
             let got = window_safe_edge(&p, &edges, p.xsize as isize, j, true);
-            assert_eq!(got, Edge::Unknown,
-                "horizontal edge at i=xsize={}, j={j} should be Unknown, not OutOfBounds", p.xsize);
+            assert_eq!(
+                got,
+                Edge::Unknown,
+                "horizontal edge at i=xsize={}, j={j} should be Unknown, not OutOfBounds",
+                p.xsize
+            );
         }
         // Row beyond the last is out of bounds.
-        assert_eq!(window_safe_edge(&p, &edges, p.xsize as isize + 1, 0, true), Edge::OutOfBounds);
+        assert_eq!(
+            window_safe_edge(&p, &edges, p.xsize as isize + 1, 0, true),
+            Edge::OutOfBounds
+        );
 
         // Rightmost column of vertical edges (j == ysize): must NOT be OutOfBounds.
         for i in 0..p.xsize as isize {
             let got = window_safe_edge(&p, &edges, i, p.ysize as isize, false);
-            assert_eq!(got, Edge::Unknown,
-                "vertical edge at i={i}, j=ysize={} should be Unknown, not OutOfBounds", p.ysize);
+            assert_eq!(
+                got,
+                Edge::Unknown,
+                "vertical edge at i={i}, j=ysize={} should be Unknown, not OutOfBounds",
+                p.ysize
+            );
         }
         // Column beyond the last is out of bounds.
-        assert_eq!(window_safe_edge(&p, &edges, 0, p.ysize as isize + 1, false), Edge::OutOfBounds);
+        assert_eq!(
+            window_safe_edge(&p, &edges, 0, p.ysize as isize + 1, false),
+            Edge::OutOfBounds
+        );
     }
 
     /// Regression test: find_facts must not produce wrong deductions on the default puzzle.
@@ -336,10 +359,15 @@ mod test {
 
         let grid = from_string(
             "10x10d0:b1a2a22a32a1b22b2b2a23b212a22d222a31b2c12c2d331d013e1a2c2122a1b2a3b13a02a",
-        ).unwrap();
+        )
+        .unwrap();
         let xsize = grid.len();
         let ysize = grid[0].len();
-        let p = Puzzle { cells: grid, xsize, ysize };
+        let p = Puzzle {
+            cells: grid,
+            xsize,
+            ysize,
+        };
 
         let facts = find_facts(&p, "");
 

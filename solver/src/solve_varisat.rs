@@ -1,7 +1,7 @@
 use varisat::{CnfFormula, ExtendFormula, Solver};
 use crate::data::solution::Solution;
 use crate::parse::Cell;
-use crate::solve_common::{handle_ok, solve_form_conditions};
+use crate::solve_common::{handle_ok_2, solve_form_conditions};
 
 pub fn solve(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option<Vec<Solution>> {
     let mut formula = CnfFormula::new();
@@ -24,7 +24,7 @@ pub fn solve(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option<Vec<
         }
         if has_solutions {
             let current_solution = s.model().unwrap();
-            let (new_clause, approx_solution) = handle_ok(
+            let (new_clauses, approx_solution) = handle_ok_2(
                 &puzzle,
                 &facts,
                 &base_edges,
@@ -32,8 +32,12 @@ pub fn solve(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option<Vec<
                 current_solution.as_slice(),
                 prefix,
             );
-            if approx_solution.is_some() { last_solution = approx_solution }
-            s.add_clause(&new_clause);
+            if approx_solution.is_some() {
+                last_solution = approx_solution;
+            }
+            for c in &new_clauses {
+                s.add_clause(c.as_slice());
+            }
             if !solutions.is_empty() { break; }
         } else {
             println!("{prefix}No more solutions!");

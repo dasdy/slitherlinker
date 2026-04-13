@@ -18,10 +18,11 @@ use data::puzzle::Puzzle;
 use data::solution::{format_puzzle_diff, format_side_by_side, Solution, ANSI_RED, ANSI_YELLOW_BG};
 use parse::from_string;
 use patterns::find_facts;
-use solve_common::single_loop;
 use solve_splr::solve_splr;
 use solve_varisat::solve;
 use solve_z3::solve_z3;
+
+use crate::solve_common::single_loop_edge;
 
 const TIMEOUT_SECS: u64 = 180;
 const DEFAULT_PUZZLE: &str =
@@ -235,7 +236,8 @@ pub fn main() {
 
         // Ground truth: first valid single-loop from varisat / no-pre.
         let sol_false = match sols_no_pre.and_then(|v| v.first()) {
-            Some(s) if single_loop(&s.puzzle, &s.edges) => s,
+            // TODO: add this check back in: commented bc I expect solution vector here now instead
+            Some(s) if single_loop_edge(&s.puzzle, &s.edges) => s,
             _ => {
                 println!("Cannot compare: varisat/no-pre did not produce a valid loop.");
                 break 'analysis;
@@ -247,7 +249,7 @@ pub fn main() {
         // Determine whether varisat / pre-solve produced a valid loop.
         let pre_true_has_loop = sols_pre
             .and_then(|v| v.first())
-            .is_some_and(|s| single_loop(&s.puzzle, &s.edges));
+            .is_some_and(|s| single_loop_edge(&s.puzzle, &s.edges));
 
         if pre_true_has_loop {
             let sol_true = sols_pre.unwrap().first().unwrap();

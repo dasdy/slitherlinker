@@ -2,7 +2,7 @@ use splr::solver::*;
 use crate::adapter::SplrRules;
 use crate::data::solution::Solution;
 use crate::parse::Cell;
-use crate::solve_common::{handle_ok, solve_form_conditions};
+use crate::solve_common::{handle_ok_2, solve_form_conditions};
 
 pub fn solve_splr(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option<Vec<Solution>> {
     let mut formula: SplrRules = SplrRules::new();
@@ -26,7 +26,7 @@ pub fn solve_splr(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option
         let solve_result = Certificate::try_from(final_formula.clone());
         match solve_result {
             Ok(Certificate::SAT(sol)) => {
-                let (new_clause, approx_solution) = handle_ok(
+                let (new_clauses, approx_solution) = handle_ok_2(
                     &p,
                     &facts,
                     &base_edges,
@@ -34,8 +34,10 @@ pub fn solve_splr(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option
                     sol.as_slice(),
                     prefix,
                 );
-                if approx_solution.is_some() { last_solution = approx_solution }
-                final_formula.push(new_clause);
+                if approx_solution.is_some() {
+                    last_solution = approx_solution;
+                }
+                final_formula.extend(new_clauses);
                 if !solutions.is_empty() { break; }
             }
             Ok(Certificate::UNSAT) => {

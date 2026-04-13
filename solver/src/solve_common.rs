@@ -1,25 +1,25 @@
-use std::{
-    collections::{HashSet, LinkedList},
-    ops::{Not, Sub},
-};
-use std::collections::HashMap;
 use crate::adapter::{SlitherlinkerFormula, SlitherlinkerLit};
-use crate::parse::Cell;
 use crate::data::pattern::Edge;
 use crate::data::puzzle::Puzzle;
 use crate::data::solution::{format_puzzle, Solution};
+use crate::parse::Cell;
 use crate::patterns::find_facts;
+use std::collections::HashMap;
+use std::{
+    collections::{HashSet, LinkedList},
+    ops::Not,
+};
 
 pub fn loop_two<T>(a: T, b: T) -> Vec<Vec<T>>
-    where
-        T: Not<Output=T> + Copy,
+where
+    T: Not<Output = T> + Copy,
 {
     vec![vec![a, !b], vec![!a, b]]
 }
 
 pub fn loop_three<T>(a: T, b: T, c: T) -> Vec<Vec<T>>
-    where
-        T: Not<Output=T> + Copy,
+where
+    T: Not<Output = T> + Copy,
 {
     vec![
         vec![!a, !b, !c],
@@ -30,8 +30,8 @@ pub fn loop_three<T>(a: T, b: T, c: T) -> Vec<Vec<T>>
 }
 
 pub fn loop_four<T>(a: T, b: T, c: T, d: T) -> Vec<Vec<T>>
-    where
-        T: Not<Output=T> + Copy,
+where
+    T: Not<Output = T> + Copy,
 {
     vec![
         vec![a, b, c, !d],
@@ -46,8 +46,8 @@ pub fn loop_four<T>(a: T, b: T, c: T, d: T) -> Vec<Vec<T>>
 }
 
 pub fn clause_zero<T>(edges: (T, T, T, T)) -> Vec<Vec<T>>
-    where
-        T: Not<Output=T>,
+where
+    T: Not<Output = T>,
 {
     vec![
         vec![!edges.0],
@@ -58,8 +58,8 @@ pub fn clause_zero<T>(edges: (T, T, T, T)) -> Vec<Vec<T>>
 }
 
 pub fn clause_one<T>(edges: (T, T, T, T)) -> Vec<Vec<T>>
-    where
-        T: Not<Output=T> + Copy,
+where
+    T: Not<Output = T> + Copy,
 {
     let (a, b, c, d) = edges;
 
@@ -76,8 +76,8 @@ pub fn clause_one<T>(edges: (T, T, T, T)) -> Vec<Vec<T>>
 }
 
 pub fn clause_two<T>(edges: (T, T, T, T)) -> Vec<Vec<T>>
-    where
-        T: Not<Output=T> + Copy,
+where
+    T: Not<Output = T> + Copy,
 {
     let (a, b, c, d) = edges;
 
@@ -95,8 +95,8 @@ pub fn clause_two<T>(edges: (T, T, T, T)) -> Vec<Vec<T>>
 }
 
 pub fn clause_three<T>(edges: (T, T, T, T)) -> Vec<Vec<T>>
-    where
-        T: Not<Output=T> + Copy,
+where
+    T: Not<Output = T> + Copy,
 {
     let (a, b, c, d) = edges;
 
@@ -112,42 +112,79 @@ pub fn clause_three<T>(edges: (T, T, T, T)) -> Vec<Vec<T>>
     ]
 }
 
-pub fn single_loop(puzzle: &Puzzle, edges: &[Edge]) -> bool {
-    let all_edge_indices: HashSet<usize> = HashSet::from_iter(
-        edges
-            .iter()
-            .enumerate()
-            .filter(|(_, &v)| v == Edge::Filled)
-            .map(|(i, &_)| i),
-    );
-    if all_edge_indices.is_empty() {
-        return false;
+/// Connected components of filled edges (each component is one closed polyline loop).
+pub fn find_loops_edges(puzzle: &Puzzle, edges: &[Edge]) -> LinkedList<Vec<usize>> {
+    let all_filled: HashSet<usize> = edges
+        .iter()
+        .enumerate()
+        .filter(|(_, &v)| v == Edge::Filled)
+        .map(|(i, _)| i)
+        .collect();
+
+    if all_filled.is_empty() {
+        return LinkedList::new();
     }
-    let mut visited_edges: HashSet<usize> = HashSet::new();
-    let mut queue: LinkedList<usize> = LinkedList::new();
-    queue.push_back(*all_edge_indices.iter().min().unwrap());
 
-    while !queue.is_empty() {
-        let item = queue.pop_front().unwrap();
-        visited_edges.insert(item);
+    let mut visited: HashSet<usize> = HashSet::new();
+    let mut loops: LinkedList<Vec<usize>> = LinkedList::new();
 
-        let neighbors: Vec<usize> = puzzle.edges_around_edge(item);
+    while let Some(&start) = all_filled.difference(&visited).next() {
+        let mut current_loop: Vec<usize> = Vec::new();
+        let mut queue: LinkedList<usize> = LinkedList::new();
+        queue.push_back(start);
 
-        for n in neighbors {
-            if n >= edges.len() {
+        while let Some(item) = queue.pop_front() {
+            if visited.contains(&item) {
                 continue;
             }
-            if edges[n] == Edge::Filled && !visited_edges.contains(&n) {
-                queue.push_back(n);
+            visited.insert(item);
+            current_loop.push(item);
+
+            for n in puzzle.edges_around_edge(item) {
+                if n < edges.len() && edges[n] == Edge::Filled && !visited.contains(&n) {
+                    queue.push_back(n);
+                }
             }
         }
+
+        loops.push_back(current_loop);
     }
 
-    all_edge_indices.sub(&visited_edges).is_empty()
+    loops
 }
 
-pub fn cell_clauses<T: SlitherlinkerLit + Not<Output=T> + Copy>(
-    p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>, prefix: &str,
+/// Edge-index groups for blocking clauses: one group per filled loop, or one global group
+/// when there are no filled loops (same policy as [`handle_ok_2`]).
+pub fn blocking_clause_edge_groups(
+    puzzle: &Puzzle,
+    num_edges: usize,
+    edges: &[Edge],
+) -> Vec<Vec<usize>> {
+    let loops = find_loops_edges(puzzle, edges);
+    let mut groups: Vec<Vec<usize>> = if loops.is_empty() {
+        vec![(0..num_edges).collect()]
+    } else {
+        loops
+            .iter()
+            .filter(|lp| !lp.is_empty())
+            .map(|lp| lp.clone())
+            .collect()
+    };
+    if groups.is_empty() {
+        groups = vec![(0..num_edges).collect()];
+    }
+    groups
+}
+
+pub fn single_loop_edge(puzzle: &Puzzle, edges: &[Edge]) -> bool {
+    find_loops_edges(puzzle, edges).len() == 1
+}
+
+pub fn cell_clauses<T: SlitherlinkerLit + Not<Output = T> + Copy>(
+    p: &Puzzle,
+    facts: &HashMap<usize, bool>,
+    formula: &mut impl SlitherlinkerFormula<T>,
+    prefix: &str,
 ) {
     let _ = prefix;
     for i in 0..p.xsize {
@@ -187,8 +224,11 @@ pub fn cell_clauses<T: SlitherlinkerLit + Not<Output=T> + Copy>(
     }
 }
 
-pub fn edge_clauses<T: SlitherlinkerLit + Not<Output=T> + Copy>(
-    p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>, prefix: &str,
+pub fn edge_clauses<T: SlitherlinkerLit + Not<Output = T> + Copy>(
+    p: &Puzzle,
+    facts: &HashMap<usize, bool>,
+    formula: &mut impl SlitherlinkerFormula<T>,
+    prefix: &str,
 ) {
     let _ = prefix;
     for i in 0..=p.xsize {
@@ -200,8 +240,7 @@ pub fn edge_clauses<T: SlitherlinkerLit + Not<Output=T> + Copy>(
                 .map(|&x| formula.pure_lit(x))
                 .collect::<Vec<T>>();
 
-            if edges.iter().all(|&l| facts.contains_key(&(l)))
-            {
+            if edges.iter().all(|&l| facts.contains_key(&(l))) {
                 // println!("{prefix}Skipping edge clauses for [{i}][{j}]");
                 continue;
             }
@@ -225,8 +264,11 @@ pub fn edge_clauses<T: SlitherlinkerLit + Not<Output=T> + Copy>(
 /// 2. Find "facts" using patterns (only if pre_solve is true) as hashmap <edge-index: value>
 /// 3. Use facts and cell-edge input to mutate input boolean formula
 /// 4. Return the "base edges" vector - basically a materialized facts hashmap
-pub fn solve_form_conditions<T: SlitherlinkerLit + Not<Output=T> + Copy>(
-    grid: Vec<Vec<Cell>>, pre_solve: bool, formula: &mut impl SlitherlinkerFormula<T>, prefix: &str,
+pub fn solve_form_conditions<T: SlitherlinkerLit + Not<Output = T> + Copy>(
+    grid: Vec<Vec<Cell>>,
+    pre_solve: bool,
+    formula: &mut impl SlitherlinkerFormula<T>,
+    prefix: &str,
 ) -> (Puzzle, HashMap<usize, bool>, Vec<Edge>) {
     let xsize = grid.len();
     let ysize = grid[0].len();
@@ -248,7 +290,10 @@ pub fn solve_form_conditions<T: SlitherlinkerLit + Not<Output=T> + Copy>(
         base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
     }
 
-    println!("{prefix}After simplify:\n{}", format_puzzle(&p, &base_edges));
+    println!(
+        "{prefix}After simplify:\n{}",
+        format_puzzle(&p, &base_edges)
+    );
 
     for (&k, &v) in facts.iter() {
         let l = formula.pure_lit(k);
@@ -260,21 +305,15 @@ pub fn solve_form_conditions<T: SlitherlinkerLit + Not<Output=T> + Copy>(
     (p, facts, base_edges)
 }
 
-/// Handle OK result from solver
-/// Two cases are possible: if the solution is a single loop, add it to solutions list
-/// If not, save it as "last solution" and return as non-empty option
-/// In any case, make the resulting solution a new formula for iterative solve
-/// so that we can look for next better solutions (negate everything in this one to get new ones)
-pub fn handle_ok<T: SlitherlinkerLit>(puzzle: &Puzzle,
-                                      facts: &HashMap<usize, bool>,
-                                      base_edges: &[Edge],
-                                      solutions: &mut Vec<Solution>,
-                                      solution_vector: &[T],
-                                      prefix: &str) -> (Vec<T>, Option<Solution>) {
-    let edges: Vec<Edge> = solution_vector
-        .iter()
-        .map(|x| x.to_edge())
-        .collect();
+pub fn handle_ok_2<T: SlitherlinkerLit>(
+    puzzle: &Puzzle,
+    facts: &HashMap<usize, bool>,
+    base_edges: &[Edge],
+    solutions: &mut Vec<Solution>,
+    solution_vector: &[T],
+    prefix: &str,
+) -> (Vec<Vec<T>>, Option<Solution>) {
+    let edges: Vec<Edge> = solution_vector.iter().map(|x| x.to_edge()).collect();
     let solution = Solution {
         puzzle: puzzle.clone(),
         edges: edges.clone(),
@@ -282,13 +321,18 @@ pub fn handle_ok<T: SlitherlinkerLit>(puzzle: &Puzzle,
         facts: facts.clone(),
     };
     let mut last_solution = None;
-    if single_loop(puzzle, &edges) {
+    let loops = find_loops_edges(puzzle, &edges);
+    if loops.len() == 1 {
         println!("{prefix}WIN! found single-loop solution!");
         solutions.push(solution);
     } else {
         last_solution = Some(solution);
     }
 
-    let new_clause: Vec<T> = solution_vector.iter().map(|l| l.invert()).collect();
-    (new_clause, last_solution)
+    let groups = blocking_clause_edge_groups(puzzle, solution_vector.len(), &edges);
+    let new_clauses: Vec<Vec<T>> = groups
+        .iter()
+        .map(|ixs| ixs.iter().map(|&e| solution_vector[e].invert()).collect())
+        .collect();
+    (new_clauses, last_solution)
 }

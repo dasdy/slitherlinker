@@ -1,6 +1,7 @@
+use crate::data::pattern::Edge;
 use splr::types::Lit as SplrLit;
 use varisat::{CnfFormula, ExtendFormula, Lit as VLit};
-use crate::data::pattern::Edge;
+use z3::ast::Bool as Z3Bool;
 
 pub trait SlitherlinkerLit {
     fn to_edge(&self) -> Edge;
@@ -21,7 +22,6 @@ impl SlitherlinkerFormula<VLit> for CnfFormula {
         VLit::from_index(ix, true)
     }
 }
-
 
 pub type SplrRules = Vec<Vec<SplrLit>>;
 
@@ -79,3 +79,19 @@ impl SlitherlinkerLit for SplrLit {
         !(*self)
     }
 }
+
+impl SlitherlinkerLit for Z3Bool {
+    #[inline]
+    fn to_edge(&self) -> Edge {
+        match self.as_bool() {
+            Some(true) => Edge::Filled,
+            _ => Edge::Empty,
+        }
+    }
+
+    #[inline]
+    fn invert(&self) -> Self {
+        !self
+    }
+}
+

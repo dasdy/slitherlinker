@@ -8,9 +8,80 @@ use crate::data::puzzle::Puzzle;
 use crate::data::solution::Solution;
 use crate::parse::Cell;
 use crate::patterns::find_facts;
-use crate::solve_common::single_loop;
+use crate::solve_common::{blocking_clause_edge_groups, find_loops_edges};
 
-pub fn solve_z3(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option<Vec<Solution>> {
+/// Z3 disjunct: literal that is true iff this edge differs from the given model value.
+fn z3_edge_differs_lit(var: &Bool, model_filled: bool) -> Bool {
+    if model_filled {
+        !var
+    } else {
+        var.clone()
+    }
+}
+
+fn assert_fact_units(solver: &Solver, vars: &[Bool], facts: &HashMap<usize, bool>) {
+    for (&k, &v) in facts {
+        if v {
+            solver.assert(&vars[k]);
+        } else {
+            solver.assert(!&vars[k]);
+        }
+    }
+}
+
+fn assert_cell_constraints(solver: &Solver, p: &Puzzle, vars: &[Bool]) {
+    for i in 0..p.xsize {
+        for j in 0..p.ysize {
+            let c = p.cells[i][j];
+            if c < 0 {
+                continue;
+            }
+            let (e0, e1, e2, e3) = p.edges_around_cell(i, j);
+            let weighted = [
+                (&vars[e0], 1),
+                (&vars[e1], 1),
+                (&vars[e2], 1),
+                (&vars[e3], 1),
+            ];
+            solver.assert(&Bool::pb_eq(&weighted, c as i32));
+        }
+    }
+}
+
+fn assert_vertex_constraints(solver: &Solver, p: &Puzzle, vars: &[Bool]) {
+    for i in 0..=p.xsize {
+        for j in 0..=p.ysize {
+            let indices = p.edges_around_point(i, j);
+            let weighted: Vec<(&Bool, i32)> = indices.iter().map(|&ix| (&vars[ix], 1)).collect();
+            let exactly_zero = Bool::pb_eq(&weighted, 0);
+            let exactly_two = Bool::pb_eq(&weighted, 2);
+            solver.assert(&Bool::or(&[exactly_zero, exactly_two]));
+        }
+    }
+}
+
+/// Same blocking policy as [`crate::solve_common::handle_ok_2`]: one OR per loop component.
+fn assert_blocking_groups_z3(
+    solver: &Solver,
+    vars: &[Bool],
+    edges: &[Edge],
+    groups: &[Vec<usize>],
+) {
+    for g in groups {
+        let clause: Vec<Bool> = g
+            .iter()
+            .map(|&i| z3_edge_differs_lit(&vars[i], edges[i] == Edge::Filled))
+            .collect();
+        solver.assert(&Bool::or(&clause));
+    }
+}
+
+/// Builds puzzle, facts, base edge paint, and one Z3 [`Bool`] per grid edge.
+fn z3_slitherlink_instance(
+    grid: Vec<Vec<Cell>>,
+    pre_solve: bool,
+    prefix: &str,
+) -> (Puzzle, HashMap<usize, bool>, Vec<Edge>, Vec<Bool>, Solver) {
     let xsize = grid.len();
     let ysize = grid[0].len();
     let p = Puzzle {
@@ -31,48 +102,24 @@ pub fn solve_z3(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option<V
         base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
     }
 
-    // One boolean variable per edge.
     let vars: Vec<Bool> = (0..num_edges)
         .map(|i| Bool::new_const(format!("e{i}")))
         .collect();
 
     let solver = Solver::new();
+    assert_fact_units(&solver, &vars, &facts);
+    assert_cell_constraints(&solver, &p, &vars);
+    assert_vertex_constraints(&solver, &p, &vars);
 
-    // Assert pre-solve facts as unit clauses.
-    for (&k, &v) in &facts {
-        if v {
-            solver.assert(&vars[k]);
-        } else {
-            solver.assert(!&vars[k]);
-        }
-    }
+    (p, facts, base_edges, vars, solver)
+}
 
-    // Cell constraints: exactly N edges filled around each numbered cell.
-    for i in 0..xsize {
-        for j in 0..ysize {
-            let c = p.cells[i][j];
-            if c < 0 {
-                continue;
-            }
-            let (e0, e1, e2, e3) = p.edges_around_cell(i, j);
-            let weighted = [(&vars[e0], 1), (&vars[e1], 1), (&vars[e2], 1), (&vars[e3], 1)];
-            solver.assert(&Bool::pb_eq(&weighted, c as i32));
-        }
-    }
-
-    // Vertex constraints: exactly 0 or 2 filled edges at each grid point.
-    for i in 0..=xsize {
-        for j in 0..=ysize {
-            let indices = p.edges_around_point(i, j);
-            let weighted: Vec<(&Bool, i32)> = indices.iter().map(|&ix| (&vars[ix], 1)).collect();
-            let exactly_zero = Bool::pb_eq(&weighted, 0);
-            let exactly_two = Bool::pb_eq(&weighted, 2);
-            solver.assert(&Bool::or(&[exactly_zero, exactly_two]));
-        }
-    }
+pub fn solve_z3(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option<Vec<Solution>> {
+    let (p, facts, base_edges, vars, solver) = z3_slitherlink_instance(grid, pre_solve, prefix);
 
     println!("{prefix}facts found: {}", facts.len());
 
+    let num_edges = vars.len();
     let mut solutions = vec![];
     let mut counter = 0;
     let mut last_solution = None;
@@ -88,12 +135,12 @@ pub fn solve_z3(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option<V
 
                 let edges: Vec<Edge> = vars
                     .iter()
-                    .map(|var| {
-                        match model.eval(var, true).and_then(|b| b.as_bool()) {
+                    .map(
+                        |var| match model.eval(var, true).and_then(|b| b.as_bool()) {
                             Some(true) => Edge::Filled,
                             _ => Edge::Empty,
-                        }
-                    })
+                        },
+                    )
                     .collect();
 
                 let solution = Solution {
@@ -103,7 +150,7 @@ pub fn solve_z3(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option<V
                     facts: facts.clone(),
                 };
 
-                if single_loop(&p, &edges) {
+                if find_loops_edges(&p, &edges).len() == 1 {
                     println!("{prefix}WIN! found single-loop solution!");
                     solutions.push(solution);
                     break;
@@ -111,19 +158,8 @@ pub fn solve_z3(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option<V
                     last_solution = Some(solution);
                 }
 
-                // Blocking clause: at least one edge must differ from this assignment.
-                let blocking: Vec<Bool> = vars
-                    .iter()
-                    .enumerate()
-                    .map(|(i, var)| {
-                        if edges[i] == Edge::Filled {
-                            !var
-                        } else {
-                            var.clone()
-                        }
-                    })
-                    .collect();
-                solver.assert(&Bool::or(&blocking));
+                let groups = blocking_clause_edge_groups(&p, num_edges, &edges);
+                assert_blocking_groups_z3(&solver, &vars, &edges, &groups);
             }
             SatResult::Unsat => {
                 println!("{prefix}No more solutions!");
