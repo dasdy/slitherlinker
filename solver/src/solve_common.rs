@@ -147,7 +147,7 @@ pub fn single_loop(puzzle: &Puzzle, edges: &[Edge]) -> bool {
 }
 
 pub fn cell_clauses<T: SlitherlinkerLit>(
-    p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>,
+    p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>, prefix: &str,
 )
     where
         T: Not<Output=T> + Copy, {
@@ -158,11 +158,11 @@ pub fn cell_clauses<T: SlitherlinkerLit>(
                 continue;
             }
             let edges = p.edges_around_cell(i, j);
-            if vec![edges.0, edges.1, edges.2, edges.3]
+            if [edges.0, edges.1, edges.2, edges.3]
                 .iter()
                 .all(|i| facts.contains_key(i))
             {
-                println!("Skipping cell clause: {condition} at [{i}][{j}]");
+                println!("{prefix}Skipping cell clause: {condition} at [{i}][{j}]");
                 continue;
             }
             // all set to true
@@ -189,7 +189,7 @@ pub fn cell_clauses<T: SlitherlinkerLit>(
 }
 
 pub fn edge_clauses<T: SlitherlinkerLit>(
-    p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>)
+    p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>, prefix: &str)
     where
         T: Not<Output=T> + Copy, {
     for i in 0..=p.xsize {
@@ -203,7 +203,7 @@ pub fn edge_clauses<T: SlitherlinkerLit>(
 
             if edges.iter().all(|&l| facts.contains_key(&(l)))
             {
-                println!("Skipping edge clauses for [{i}][{j}]");
+                println!("{prefix}Skipping edge clauses for [{i}][{j}]");
                 continue;
             }
             let clauses = match es.len() {
@@ -227,7 +227,7 @@ pub fn edge_clauses<T: SlitherlinkerLit>(
 /// 3. Use facts and cell-edge input to mutate input boolean formula
 /// 4. Return the "base edges" vector - basically a materialized facts hashmap
 pub fn solve_form_conditions<T: SlitherlinkerLit + Copy>(
-    grid: Vec<Vec<Cell>>, pre_solve: bool, formula: &mut impl SlitherlinkerFormula<T>,
+    grid: Vec<Vec<Cell>>, pre_solve: bool, formula: &mut impl SlitherlinkerFormula<T>, prefix: &str,
 ) -> (Puzzle, HashMap<usize, bool>, Vec<Edge>) where
     T: Not<Output=T> + Copy, {
     let xsize = grid.len();
@@ -240,7 +240,7 @@ pub fn solve_form_conditions<T: SlitherlinkerLit + Copy>(
     };
 
     let facts = if pre_solve {
-        find_facts(&p)
+        find_facts(&p, prefix)
     } else {
         HashMap::new()
     };
@@ -250,15 +250,15 @@ pub fn solve_form_conditions<T: SlitherlinkerLit + Copy>(
         base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
     }
 
-    println!("After simplify:\n{}", format_puzzle(&p, &base_edges));
+    println!("{prefix}After simplify:\n{}", format_puzzle(&p, &base_edges));
 
     for (&k, &v) in facts.iter() {
         let l = formula.pure_lit(k);
         formula.append_clause(vec![if v { l } else { l.invert() }]);
     }
 
-    cell_clauses(&p, &facts, formula);
-    edge_clauses(&p, &facts, formula);
+    cell_clauses(&p, &facts, formula, prefix);
+    edge_clauses(&p, &facts, formula, prefix);
     (p, facts, base_edges)
 }
 
@@ -271,7 +271,8 @@ pub fn handle_ok<T: SlitherlinkerLit>(puzzle: &Puzzle,
                                       facts: &HashMap<usize, bool>,
                                       base_edges: &[Edge],
                                       solutions: &mut Vec<Solution>,
-                                      solution_vector: &[T]) -> (Vec<T>, Option<Solution>) {
+                                      solution_vector: &[T],
+                                      prefix: &str) -> (Vec<T>, Option<Solution>) {
     let edges: Vec<Edge> = solution_vector
         .iter()
         .map(|x| x.to_edge())
@@ -284,7 +285,7 @@ pub fn handle_ok<T: SlitherlinkerLit>(puzzle: &Puzzle,
     };
     let mut last_solution = None;
     if single_loop(puzzle, &edges) {
-        println!("WIN! found single-loop solution!");
+        println!("{prefix}WIN! found single-loop solution!");
         solutions.push(solution);
     } else {
         last_solution = Some(solution);

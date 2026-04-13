@@ -16,7 +16,7 @@ use crate::data::solution::format_puzzle;
 /// like this: |3|3|. This is a non-bruteforce part of the solution, where we are only limited
 /// by how advanced the patterns are. Ideally, any puzzle that does not contain bifurcation,
 /// should be solved only by deducing these facts.
-pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
+pub fn find_facts(puzzle: &Puzzle, prefix: &str) -> HashMap<usize, bool> {
     let mut facts_map = HashMap::new();
 
     let patterns = patterns();
@@ -48,7 +48,7 @@ pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
                                        i, j,
                         );
                         if facts_map.len() > current_size {
-                            println!("found new {pattern_name} at {i} {j}");
+                            println!("{prefix}found new {pattern_name} at {i} {j}");
                             found_facts = true;
 
 
@@ -59,7 +59,7 @@ pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
                                 base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
                             }
 
-                            println!("after this step:\n{}", format_puzzle(puzzle, &base_edges));
+                            println!("{prefix}after this step:\n{}", format_puzzle(puzzle, &base_edges));
                         }
                     };
                 }
@@ -89,8 +89,8 @@ fn remember_facts(
             }
             if hor_j_ix >= 0 && (i + i_w) >= 0 && (hor_j_ix as usize) < puzzle.ysize {
                 let edge_ix = puzzle.edge_ix((i + i_w) as usize, hor_j_ix as usize, true);
-                if !facts_map.contains_key(&edge_ix) {
-                    facts_map.insert(edge_ix, hor_edge == Edge::Filled);
+                if let std::collections::hash_map::Entry::Vacant(e) = facts_map.entry(edge_ix) {
+                    e.insert(hor_edge == Edge::Filled);
                     opts[edge_ix] = hor_edge;
                 }
             }
@@ -111,8 +111,8 @@ fn remember_facts(
 
             if ver_ix >= 0 && j + j_w >= 0 && (ver_ix as usize) < puzzle.xsize {
                 let edge_ix = puzzle.edge_ix(ver_ix as usize, (j + j_w) as usize, false);
-                if !facts_map.contains_key(&edge_ix) {
-                    facts_map.insert(edge_ix, ver_edge == Edge::Filled);
+                if let std::collections::hash_map::Entry::Vacant(e) = facts_map.entry(edge_ix) {
+                    e.insert(ver_edge == Edge::Filled);
                     opts[edge_ix] = ver_edge;
                 }
             }
@@ -337,7 +337,7 @@ mod test {
         let ysize = grid[0].len();
         let p = Puzzle { cells: grid, xsize, ysize };
 
-        let facts = find_facts(&p);
+        let facts = find_facts(&p, "");
 
         // Both edges are Filled in the true (SAT) solution.  The pre-solve must not
         // assert them as Empty (false) — that would make the SAT phase reach UNSAT.

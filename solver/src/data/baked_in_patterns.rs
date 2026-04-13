@@ -2,7 +2,7 @@ use crate::data::pattern::Cell;
 use crate::data::pattern::Edge;
 use crate::data::pattern::Pattern;
 use crate::data::pattern::PatternSolution;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 pub fn patterns() -> BTreeMap<String, PatternSolution> {
     let any_input = Pattern {
