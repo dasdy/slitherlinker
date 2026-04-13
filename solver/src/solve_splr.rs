@@ -61,8 +61,6 @@ pub fn solve_splr(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option
 
 #[cfg(test)]
 mod test {
-    use crate::data::pattern::Edge;
-    use crate::data::puzzle::Puzzle;
     use super::solve_splr;
 
     #[test]

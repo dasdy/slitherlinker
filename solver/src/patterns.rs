@@ -9,6 +9,7 @@ use crate::data::pattern::PatternSolution;
 use crate::data::pattern::Verticals;
 use crate::data::puzzle::Puzzle;
 
+#[allow(unused_imports)]
 use crate::data::solution::format_puzzle;
 
 /// Facts are values for edges that we can deduce using patterns.
@@ -17,6 +18,8 @@ use crate::data::solution::format_puzzle;
 /// by how advanced the patterns are. Ideally, any puzzle that does not contain bifurcation,
 /// should be solved only by deducing these facts.
 pub fn find_facts(puzzle: &Puzzle, prefix: &str) -> HashMap<usize, bool> {
+    #[allow(unused_variables)]
+    let prefix = prefix;
     let mut facts_map = HashMap::new();
 
     let patterns = patterns();
@@ -39,6 +42,7 @@ pub fn find_facts(puzzle: &Puzzle, prefix: &str) -> HashMap<usize, bool> {
                 let vert_edges = vertical_edge_window(puzzle, &options, i, j);
 
                 for (pattern_name, pattern_solution) in &patterns {
+                    let _ = pattern_name;
                     if pattern_solution.try_match(&window, &hor_edges, &vert_edges) {
                         let current_size = facts_map.len();
                         remember_facts(&mut facts_map,
@@ -48,7 +52,7 @@ pub fn find_facts(puzzle: &Puzzle, prefix: &str) -> HashMap<usize, bool> {
                                        i, j,
                         );
                         if facts_map.len() > current_size {
-                            println!("{prefix}found new {pattern_name} at {i} {j}");
+                            // println!("{prefix}found new {pattern_name} at {i} {j}");
                             found_facts = true;
 
 
@@ -59,7 +63,7 @@ pub fn find_facts(puzzle: &Puzzle, prefix: &str) -> HashMap<usize, bool> {
                                 base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
                             }
 
-                            println!("{prefix}after this step:\n{}", format_puzzle(puzzle, &base_edges));
+                            // println!("{prefix}after this step:\n{}", format_puzzle(puzzle, &base_edges));
                         }
                     };
                 }

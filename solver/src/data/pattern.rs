@@ -214,6 +214,7 @@ impl PatternSolution {
     /// Horizontal edge chars: `*`=Any, `-`=Filled, `x`=Empty, `X`=EmptyStrict, `%`=OutOfBounds
     ///
     /// The `output` string's cell characters are ignored; cells are taken from `input`.
+    #[allow(dead_code)]
     pub fn parse(input: &str, output: &str) -> PatternSolution {
         fn parse_cell(c: char) -> Cell {
             match c {
@@ -235,6 +236,7 @@ impl PatternSolution {
                 'x' => Edge::Empty,
                 'X' => Edge::EmptyStrict,
                 '%' => Edge::OutOfBounds,
+                '?' => Edge::Unknown,
                 _ => panic!("Unknown vertical edge char: {c:?}"),
             }
         }
@@ -246,6 +248,7 @@ impl PatternSolution {
                 'x' => Edge::Empty,
                 'X' => Edge::EmptyStrict,
                 '%' => Edge::OutOfBounds,
+                '?' => Edge::Unknown,
                 _ => panic!("Unknown horizontal edge char: {c:?}"),
             }
         }
@@ -267,14 +270,14 @@ impl PatternSolution {
             let chars: Vec<char> = line.chars().collect();
             assert_eq!(
                 chars.len(),
-                3,
-                "Horizontal edge row must be 3 chars, got {:?}",
+                5,
+                "Horizontal edge row must be 5 chars, got {:?}",
                 line
             );
             [
                 parse_horiz(chars[0]),
-                parse_horiz(chars[1]),
                 parse_horiz(chars[2]),
+                parse_horiz(chars[4]),
             ]
         }
 
@@ -385,39 +388,39 @@ impl PatternSolution {
         horizontals: &Horizontals,
         verticals: &Verticals,
     ) -> bool {
-        for i in 0..horizontals.len() {
-            for j in 0..horizontals[0].len() {
+        for (i, h_row) in horizontals.iter().enumerate() {
+            for (j, &h_ij) in h_row.iter().enumerate() {
                 let input_edge = self.input.horizontals[i][j];
-                if !input_edge.matches(&horizontals[i][j]) {
+                if !input_edge.matches(&h_ij) {
                     return false;
                 }
                 let output_edge = self.output.horizontals[i][j];
                 if (output_edge == Edge::Empty || output_edge == Edge::Filled)
-                    && (horizontals[i][j] == Edge::Empty || horizontals[i][j] == Edge::Filled)
-                    && !output_edge.matches(&horizontals[i][j])
+                    && (h_ij == Edge::Empty || h_ij == Edge::Filled)
+                    && !output_edge.matches(&h_ij)
                 {
                     return false;
                 }
             }
         }
-        for i in 0..verticals.len() {
-            for j in 0..verticals[0].len() {
-                if !self.input.verticals[i][j].matches(&verticals[i][j]) {
+        for (i, v_row) in verticals.iter().enumerate() {
+            for (j, &v_ij) in v_row.iter().enumerate() {
+                if !self.input.verticals[i][j].matches(&v_ij) {
                     return false;
                 }
                 let output_edge = self.output.verticals[i][j];
                 if (output_edge == Edge::Empty || output_edge == Edge::Filled)
-                    && (verticals[i][j] == Edge::Empty || verticals[i][j] == Edge::Filled)
-                    && !output_edge.matches(&verticals[i][j])
+                    && (v_ij == Edge::Empty || v_ij == Edge::Filled)
+                    && !output_edge.matches(&v_ij)
                 {
                     return false;
                 }
             }
         }
 
-        for i in 0..cells.len() {
-            for j in 0..cells[0].len() {
-                if !self.cells[i][j].matches(&cells[i][j]) {
+        for (i, c_row) in cells.iter().enumerate() {
+            for (j, &c_ij) in c_row.iter().enumerate() {
+                if !self.cells[i][j].matches(&c_ij) {
                     return false;
                 }
             }
@@ -435,14 +438,14 @@ pub mod test {
         // Two vertically adjacent 3-cells: the horizontal edge between them must be filled
         let p = PatternSolution::parse(
             "**3**\n\
-             ***\n\
+             *.*.*\n\
              **3**\n\
-             ***\n\
+             *.*.*\n\
              *****",
             "**3**\n\
-             *-*\n\
+             *.-.*\n\
              **3**\n\
-             ***\n\
+             *.*.*\n\
              *****",
         );
         assert_eq!(p.cells[0][1], Cell::Three);
@@ -457,14 +460,14 @@ pub mod test {
     fn test_parse_vertical_filled_edge() {
         let p = PatternSolution::parse(
             "3|3**\n\
-             ***\n\
+             *.*.*\n\
              *****\n\
-             ***\n\
+             *.*.*\n\
              *****",
             "3|3**\n\
-             ***\n\
+             *.*.*\n\
              *****\n\
-             ***\n\
+             *.*.*\n\
              *****",
         );
         assert_eq!(p.cells[0][0], Cell::Three);

@@ -53,9 +53,7 @@ pub fn solve(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option<Vec<
 
 #[cfg(test)]
 mod test {
-    use crate::data::puzzle::Puzzle;
     use super::solve;
-    use super::Edge;
 
     #[test]
     fn solves_simplest_2x2() {

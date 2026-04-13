@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/solver/.idea
+/solver/.DS_Store
+/.vscode
+/.DS_Store

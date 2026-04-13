@@ -128,6 +128,7 @@ pub struct Solution {
     pub puzzle: Puzzle,
     pub edges: Vec<Edge>,
     pub edges_pre_solve: Vec<Edge>,
+    #[allow(dead_code)]
     pub facts: HashMap<usize, bool>,
 }
 

@@ -2,6 +2,7 @@ use crate::data::pattern::Edge;
 use crate::parse::Cell;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct EdgeCreateError;
 
 #[derive(Debug, Clone)]
@@ -11,6 +12,7 @@ pub struct Puzzle {
     pub ysize: usize,
 }
 
+#[allow(dead_code)]
 impl Puzzle {
     pub fn from<const W: usize, const H: usize>(cells: &[[Cell; W]; H]) -> Puzzle {
         Puzzle {

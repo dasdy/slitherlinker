@@ -146,11 +146,10 @@ pub fn single_loop(puzzle: &Puzzle, edges: &[Edge]) -> bool {
     all_edge_indices.sub(&visited_edges).is_empty()
 }
 
-pub fn cell_clauses<T: SlitherlinkerLit>(
+pub fn cell_clauses<T: SlitherlinkerLit + Not<Output=T> + Copy>(
     p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>, prefix: &str,
-)
-    where
-        T: Not<Output=T> + Copy, {
+) {
+    let _ = prefix;
     for i in 0..p.xsize {
         for j in 0..p.ysize {
             let condition = p.cells[i][j];
@@ -162,7 +161,7 @@ pub fn cell_clauses<T: SlitherlinkerLit>(
                 .iter()
                 .all(|i| facts.contains_key(i))
             {
-                println!("{prefix}Skipping cell clause: {condition} at [{i}][{j}]");
+                // println!("{prefix}Skipping cell clause: {condition} at [{i}][{j}]");
                 continue;
             }
             // all set to true
@@ -188,10 +187,10 @@ pub fn cell_clauses<T: SlitherlinkerLit>(
     }
 }
 
-pub fn edge_clauses<T: SlitherlinkerLit>(
-    p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>, prefix: &str)
-    where
-        T: Not<Output=T> + Copy, {
+pub fn edge_clauses<T: SlitherlinkerLit + Not<Output=T> + Copy>(
+    p: &Puzzle, facts: &HashMap<usize, bool>, formula: &mut impl SlitherlinkerFormula<T>, prefix: &str,
+) {
+    let _ = prefix;
     for i in 0..=p.xsize {
         for j in 0..=p.ysize {
             // TODO this should return correct lit from splr
@@ -203,7 +202,7 @@ pub fn edge_clauses<T: SlitherlinkerLit>(
 
             if edges.iter().all(|&l| facts.contains_key(&(l)))
             {
-                println!("{prefix}Skipping edge clauses for [{i}][{j}]");
+                // println!("{prefix}Skipping edge clauses for [{i}][{j}]");
                 continue;
             }
             let clauses = match es.len() {
@@ -226,10 +225,9 @@ pub fn edge_clauses<T: SlitherlinkerLit>(
 /// 2. Find "facts" using patterns (only if pre_solve is true) as hashmap <edge-index: value>
 /// 3. Use facts and cell-edge input to mutate input boolean formula
 /// 4. Return the "base edges" vector - basically a materialized facts hashmap
-pub fn solve_form_conditions<T: SlitherlinkerLit + Copy>(
+pub fn solve_form_conditions<T: SlitherlinkerLit + Not<Output=T> + Copy>(
     grid: Vec<Vec<Cell>>, pre_solve: bool, formula: &mut impl SlitherlinkerFormula<T>, prefix: &str,
-) -> (Puzzle, HashMap<usize, bool>, Vec<Edge>) where
-    T: Not<Output=T> + Copy, {
+) -> (Puzzle, HashMap<usize, bool>, Vec<Edge>) {
     let xsize = grid.len();
     let ysize = grid[0].len();
 
