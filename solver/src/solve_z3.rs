@@ -80,7 +80,6 @@ fn assert_blocking_groups_z3(
 fn z3_slitherlink_instance(
     grid: Vec<Vec<Cell>>,
     pre_solve: bool,
-    prefix: &str,
 ) -> (Puzzle, HashMap<usize, bool>, Vec<Edge>, Vec<Bool>, Solver) {
     let xsize = grid.len();
     let ysize = grid[0].len();
@@ -91,7 +90,7 @@ fn z3_slitherlink_instance(
     };
 
     let facts = if pre_solve {
-        find_facts(&p, prefix)
+        find_facts(&p)
     } else {
         HashMap::new()
     };
@@ -115,7 +114,7 @@ fn z3_slitherlink_instance(
 }
 
 pub fn solve_z3(grid: Vec<Vec<Cell>>, pre_solve: bool, prefix: &str) -> Option<Vec<Solution>> {
-    let (p, facts, base_edges, vars, solver) = z3_slitherlink_instance(grid, pre_solve, prefix);
+    let (p, facts, base_edges, vars, solver) = z3_slitherlink_instance(grid, pre_solve);
 
     println!("{prefix}facts found: {}", facts.len());
 

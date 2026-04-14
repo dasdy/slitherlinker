@@ -17,9 +17,8 @@ use crate::data::solution::format_puzzle;
 /// like this: |3|3|. This is a non-bruteforce part of the solution, where we are only limited
 /// by how advanced the patterns are. Ideally, any puzzle that does not contain bifurcation,
 /// should be solved only by deducing these facts.
-pub fn find_facts(puzzle: &Puzzle, prefix: &str) -> HashMap<usize, bool> {
+pub fn find_facts(puzzle: &Puzzle) -> HashMap<usize, bool> {
     #[allow(unused_variables)]
-    let prefix = prefix;
     let mut facts_map = HashMap::new();
 
     let patterns = patterns();
@@ -367,7 +366,7 @@ mod test {
             ysize,
         };
 
-        let facts = find_facts(&p, "");
+        let facts = find_facts(&p);
 
         // Both edges are Filled in the true (SAT) solution.  The pre-solve must not
         // assert them as Empty (false) — that would make the SAT phase reach UNSAT.

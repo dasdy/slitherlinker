@@ -164,10 +164,7 @@ pub fn blocking_clause_edge_groups(
     let mut groups: Vec<Vec<usize>> = if loops.is_empty() {
         vec![(0..num_edges).collect()]
     } else {
-        loops
-            .iter()
-            .filter(|lp| !lp.is_empty()).cloned()
-            .collect()
+        loops.iter().filter(|lp| !lp.is_empty()).cloned().collect()
     };
     if groups.is_empty() {
         groups = vec![(0..num_edges).collect()];
@@ -279,7 +276,7 @@ pub fn solve_form_conditions<T: SlitherlinkerLit + Not<Output = T> + Copy>(
     };
 
     let facts = if pre_solve {
-        find_facts(&p, prefix)
+        find_facts(&p)
     } else {
         HashMap::new()
     };
@@ -289,10 +286,12 @@ pub fn solve_form_conditions<T: SlitherlinkerLit + Not<Output = T> + Copy>(
         base_edges[k] = if v { Edge::Filled } else { Edge::Empty };
     }
 
-    println!(
-        "{prefix}After simplify:\n{}",
-        format_puzzle(&p, &base_edges)
-    );
+    if prefix == "varisat" {
+        println!(
+            "{prefix}After simplify:\n{}",
+            format_puzzle(&p, &base_edges)
+        );
+    }
 
     for (&k, &v) in facts.iter() {
         let l = formula.pure_lit(k);

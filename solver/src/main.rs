@@ -87,7 +87,7 @@ pub fn main() {
                 xsize,
                 ysize,
             };
-            let facts = find_facts(&p, prefix);
+            let facts = find_facts(&p);
             let total = (1 + xsize) * ysize + (1 + ysize) * xsize;
             let mut pre_edges = vec![Edge::Unknown; total];
             for (&k, &v) in &facts {
@@ -202,37 +202,42 @@ pub fn main() {
         let sols_no_pre = results.get(&(varisat_no_pre, false)).map(|(s, _)| s);
         let sols_pre = results.get(&(varisat_pre, true)).map(|(s, _)| s);
 
-        println!("\n=== Individual results ===\n");
+        println!("\n=== Result ===\n");
 
-        match sols_no_pre {
-            Some(sols) if !sols.is_empty() => println!("varisat / no-pre:\n{}", sols[0]),
-            Some(_) => println!("varisat / no-pre: no solutions found."),
-            None => println!("varisat / no-pre: timed out."),
+        // Primary display: varisat/pre shows pre-solve deductions and final solution together.
+        // Fall back to varisat/no-pre if not available.
+        let primary = sols_pre
+            .and_then(|v| v.first())
+            .or_else(|| sols_no_pre.and_then(|v| v.first()));
+        match primary {
+            Some(sol) => print!("{}", sol),
+            None => println!("No solution found (solvers timed out or found no solutions)."),
         }
-        match sols_pre {
-            Some(sols) if !sols.is_empty() => println!("varisat / pre:\n{}", sols[0]),
-            Some(_) => println!("varisat / pre: no solutions found."),
-            None => println!("varisat / pre: timed out."),
-        }
-        match results.get(&(splr_no_pre, false)) {
-            Some((sols, _)) if !sols.is_empty() => println!("splr / no-pre:\n{}", sols[0]),
-            Some(_) => println!("splr / no-pre: no solutions found."),
-            None => println!("splr / no-pre: timed out."),
-        }
-        match results.get(&(splr_pre, true)) {
-            Some((sols, _)) if !sols.is_empty() => println!("splr / pre:\n{}", sols[0]),
-            Some(_) => println!("splr / pre: no solutions found."),
-            None => println!("splr / pre: timed out."),
-        }
-        match results.get(&(z3_no_pre, false)) {
-            Some((sols, _)) if !sols.is_empty() => println!("z3 / no-pre:\n{}", sols[0]),
-            Some(_) => println!("z3 / no-pre: no solutions found."),
-            None => println!("z3 / no-pre: timed out."),
-        }
-        match results.get(&(z3_pre, true)) {
-            Some((sols, _)) if !sols.is_empty() => println!("z3 / pre:\n{}", sols[0]),
-            Some(_) => println!("z3 / pre: no solutions found."),
-            None => println!("z3 / pre: timed out."),
+
+        // Reference edges (varisat/no-pre) for comparing other solvers.
+        let ref_edges = sols_no_pre.and_then(|v| v.first()).map(|s| &s.edges);
+
+        // Print other solver results only when they differ from the reference.
+        for &(label, pre) in &[
+            (splr_no_pre, false),
+            (splr_pre, true),
+            (z3_no_pre, false),
+            (z3_pre, true),
+        ] {
+            match results.get(&(label, pre)) {
+                Some((sols, _)) if !sols.is_empty() => {
+                    if ref_edges.is_none_or(|r| *r != sols[0].edges) {
+                        println!("\n{} differs from reference:\n{}", label.trim(), sols[0]);
+                    }
+                }
+                Some(_) if ref_edges.is_some() => {
+                    println!(
+                        "{} found no solutions (reference has a solution).",
+                        label.trim()
+                    );
+                }
+                _ => {}
+            }
         }
 
         // Ground truth: first valid single-loop from varisat / no-pre.
