@@ -43,7 +43,7 @@ fn assert_cell_constraints(solver: &Solver, p: &Puzzle, vars: &[Bool]) {
                 (&vars[e2], 1),
                 (&vars[e3], 1),
             ];
-            solver.assert(&Bool::pb_eq(&weighted, c as i32));
+            solver.assert(Bool::pb_eq(&weighted, c as i32));
         }
     }
 }
@@ -55,7 +55,7 @@ fn assert_vertex_constraints(solver: &Solver, p: &Puzzle, vars: &[Bool]) {
             let weighted: Vec<(&Bool, i32)> = indices.iter().map(|&ix| (&vars[ix], 1)).collect();
             let exactly_zero = Bool::pb_eq(&weighted, 0);
             let exactly_two = Bool::pb_eq(&weighted, 2);
-            solver.assert(&Bool::or(&[exactly_zero, exactly_two]));
+            solver.assert(Bool::or(&[exactly_zero, exactly_two]));
         }
     }
 }
@@ -72,7 +72,7 @@ fn assert_blocking_groups_z3(
             .iter()
             .map(|&i| z3_edge_differs_lit(&vars[i], edges[i] == Edge::Filled))
             .collect();
-        solver.assert(&Bool::or(&clause));
+        solver.assert(Bool::or(&clause));
     }
 }
 

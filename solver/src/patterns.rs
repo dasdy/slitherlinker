@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use crate::data::baked_in_patterns::patterns;
-use crate::data::baked_in_patterns::patterns_from_str;
 use crate::data::pattern::Cell;
 use crate::data::pattern::CellWindow;
 use crate::data::pattern::Edge;
@@ -23,8 +22,7 @@ pub fn find_facts(puzzle: &Puzzle, prefix: &str) -> HashMap<usize, bool> {
     let prefix = prefix;
     let mut facts_map = HashMap::new();
 
-    // let patterns = patterns();
-    let patterns = patterns_from_str();
+    let patterns = patterns();
 
     let horizontal_edge_count = (1 + puzzle.xsize) * puzzle.ysize;
     let vertical_edge_count = puzzle.xsize * (1 + puzzle.ysize);

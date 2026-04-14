@@ -166,8 +166,7 @@ pub fn blocking_clause_edge_groups(
     } else {
         loops
             .iter()
-            .filter(|lp| !lp.is_empty())
-            .map(|lp| lp.clone())
+            .filter(|lp| !lp.is_empty()).cloned()
             .collect()
     };
     if groups.is_empty() {
