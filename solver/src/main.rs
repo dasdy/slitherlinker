@@ -15,7 +15,9 @@ use std::time::{Duration, Instant};
 
 use data::pattern::Edge;
 use data::puzzle::Puzzle;
-use data::solution::{format_puzzle_diff, format_side_by_side, Solution, ANSI_RED, ANSI_YELLOW_BG};
+use data::solution::{
+    format_puzzle, format_puzzle_diff, format_side_by_side, Solution, ANSI_RED, ANSI_YELLOW_BG,
+};
 use parse::from_string;
 use patterns::find_facts;
 use solve_splr::solve_splr;
@@ -209,6 +211,16 @@ pub fn main() {
         let primary = sols_pre
             .and_then(|v| v.first())
             .or_else(|| sols_no_pre.and_then(|v| v.first()));
+
+        match sols_no_pre.and_then(|v| v.first()) {
+            Some(sol) => {
+                let mut s0 = String::new();
+                s0.push_str("Input puzzle:\n");
+                s0.push_str(format_puzzle(&sol.puzzle, &sol.edges_pre_solve).as_str());
+                println!("Input puzzle pre pre-solve: {}", s0)
+            }
+            None => println!("could not find raw puzzle :("),
+        }
         match primary {
             Some(sol) => print!("{}", sol),
             None => println!("No solution found (solvers timed out or found no solutions)."),
