@@ -197,119 +197,119 @@ impl Pattern {
     }
 }
 
+fn parse_cell(c: char) -> Cell {
+    match c {
+        '*' => Cell::Any,
+        '0' => Cell::Zero,
+        '1' => Cell::One,
+        '2' => Cell::Two,
+        '3' => Cell::Three,
+        'B' => Cell::OutOfBounds,
+        '.' => Cell::Nothing,
+        _ => panic!("Unknown cell char: {c:?}"),
+    }
+}
+
+fn parse_vert(c: char) -> Edge {
+    match c {
+        '*' => Edge::Any,
+        '|' => Edge::Filled,
+        'x' => Edge::Empty,
+        'X' => Edge::EmptyStrict,
+        '%' => Edge::OutOfBounds,
+        '?' => Edge::Unknown,
+        _ => panic!("Unknown vertical edge char: {c:?}"),
+    }
+}
+
+fn parse_horiz(c: char) -> Edge {
+    match c {
+        '*' => Edge::Any,
+        '-' => Edge::Filled,
+        'x' => Edge::Empty,
+        'X' => Edge::EmptyStrict,
+        '%' => Edge::OutOfBounds,
+        '?' => Edge::Unknown,
+        _ => panic!("Unknown horizontal edge char: {c:?}"),
+    }
+}
+
+fn parse_cell_row(line: &str) -> ([Cell; 3], [Edge; 2]) {
+    let chars: Vec<char> = line.chars().collect();
+    assert_eq!(chars.len(), 5, "Cell row must be 5 chars, got {:?}", line);
+    (
+        [
+            parse_cell(chars[0]),
+            parse_cell(chars[2]),
+            parse_cell(chars[4]),
+        ],
+        [parse_vert(chars[1]), parse_vert(chars[3])],
+    )
+}
+
+fn parse_horiz_row(line: &str) -> [Edge; 3] {
+    let chars: Vec<char> = line.chars().collect();
+    assert_eq!(
+        chars.len(),
+        5,
+        "Horizontal edge row must be 5 chars, got {:?}",
+        line
+    );
+    [
+        parse_horiz(chars[0]),
+        parse_horiz(chars[2]),
+        parse_horiz(chars[4]),
+    ]
+}
+
+/// Parse a compact pattern string into a `(CellWindow, Pattern)`.
+///
+/// The string must have exactly 5 non-empty lines:
+/// ```text
+/// c v c v c   <- cell row (5 chars: cell, vert-edge, cell, vert-edge, cell)
+/// h . h . h   <- horizontal edge row (5 chars; positions 1,3 are ignored separators)
+/// c v c v c
+/// h . h . h
+/// c v c v c   <- bottom cell row (no edge row below)
+/// ```
+///
+/// Cell characters: `*`=Any, `0-3`=value, `B`=OutOfBounds, `.`=Nothing
+/// Vertical edge chars (odd positions in cell rows): `*`=Any, `|`=Filled, `x`=Empty, `X`=EmptyStrict, `%`=OutOfBounds, `?`=Unknown
+/// Horizontal edge chars (positions 0,2,4 of horiz rows): `*`=Any, `-`=Filled, `x`=Empty, `X`=EmptyStrict, `%`=OutOfBounds, `?`=Unknown
+fn parse_str(s: &str) -> (CellWindow, Pattern) {
+    let lines: Vec<&str> = s.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    assert_eq!(
+        lines.len(),
+        5,
+        "Pattern string must have 5 non-empty lines, got {}",
+        lines.len()
+    );
+    let (c0, v0) = parse_cell_row(lines[0]);
+    let h0 = parse_horiz_row(lines[1]);
+    let (c1, v1) = parse_cell_row(lines[2]);
+    let h1 = parse_horiz_row(lines[3]);
+    let (c2, v2) = parse_cell_row(lines[4]);
+    (
+        [
+            [c0[0], c0[1], c0[2]],
+            [c1[0], c1[1], c1[2]],
+            [c2[0], c2[1], c2[2]],
+        ],
+        Pattern {
+            horizontals: [h0, h1],
+            verticals: [[v0[0], v0[1]], [v1[0], v1[1]], [v2[0], v2[1]]],
+        },
+    )
+}
+
 impl PatternSolution {
     /// Parse a `PatternSolution` from two compact string representations.
-    ///
-    /// Each string must have exactly 5 non-empty lines:
-    /// ```text
-    /// c v c v c   <- cell row (5 chars: cell, vert-edge, cell, vert-edge, cell)
-    /// h h h       <- horizontal edge row (3 chars)
-    /// c v c v c
-    /// h h h
-    /// c v c v c   <- bottom cell row (no edge row below)
-    /// ```
-    ///
-    /// Cell characters: `*`=Any, `0-3`=value, `B`=OutOfBounds, `.`=Nothing
-    /// Vertical edge chars (odd positions in cell rows): `*`=Any, `|`=Filled, `x`=Empty, `X`=EmptyStrict, `%`=OutOfBounds
-    /// Horizontal edge chars: `*`=Any, `-`=Filled, `x`=Empty, `X`=EmptyStrict, `%`=OutOfBounds
-    ///
+    /// See [`parse_str`] for the string format.
     /// The `output` string's cell characters are ignored; cells are taken from `input`.
     #[allow(dead_code)]
     pub fn parse(input: &str, output: &str) -> PatternSolution {
-        fn parse_cell(c: char) -> Cell {
-            match c {
-                '*' => Cell::Any,
-                '0' => Cell::Zero,
-                '1' => Cell::One,
-                '2' => Cell::Two,
-                '3' => Cell::Three,
-                'B' => Cell::OutOfBounds,
-                '.' => Cell::Nothing,
-                _ => panic!("Unknown cell char: {c:?}"),
-            }
-        }
-
-        fn parse_vert(c: char) -> Edge {
-            match c {
-                '*' => Edge::Any,
-                '|' => Edge::Filled,
-                'x' => Edge::Empty,
-                'X' => Edge::EmptyStrict,
-                '%' => Edge::OutOfBounds,
-                '?' => Edge::Unknown,
-                _ => panic!("Unknown vertical edge char: {c:?}"),
-            }
-        }
-
-        fn parse_horiz(c: char) -> Edge {
-            match c {
-                '*' => Edge::Any,
-                '-' => Edge::Filled,
-                'x' => Edge::Empty,
-                'X' => Edge::EmptyStrict,
-                '%' => Edge::OutOfBounds,
-                '?' => Edge::Unknown,
-                _ => panic!("Unknown horizontal edge char: {c:?}"),
-            }
-        }
-
-        fn parse_cell_row(line: &str) -> ([Cell; 3], [Edge; 2]) {
-            let chars: Vec<char> = line.chars().collect();
-            assert_eq!(chars.len(), 5, "Cell row must be 5 chars, got {:?}", line);
-            (
-                [
-                    parse_cell(chars[0]),
-                    parse_cell(chars[2]),
-                    parse_cell(chars[4]),
-                ],
-                [parse_vert(chars[1]), parse_vert(chars[3])],
-            )
-        }
-
-        fn parse_horiz_row(line: &str) -> [Edge; 3] {
-            let chars: Vec<char> = line.chars().collect();
-            assert_eq!(
-                chars.len(),
-                5,
-                "Horizontal edge row must be 5 chars, got {:?}",
-                line
-            );
-            [
-                parse_horiz(chars[0]),
-                parse_horiz(chars[2]),
-                parse_horiz(chars[4]),
-            ]
-        }
-
-        fn parse_str(s: &str) -> (CellWindow, Pattern) {
-            let lines: Vec<&str> = s.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
-            assert_eq!(
-                lines.len(),
-                5,
-                "Pattern string must have 5 non-empty lines, got {}",
-                lines.len()
-            );
-            let (c0, v0) = parse_cell_row(lines[0]);
-            let h0 = parse_horiz_row(lines[1]);
-            let (c1, v1) = parse_cell_row(lines[2]);
-            let h1 = parse_horiz_row(lines[3]);
-            let (c2, v2) = parse_cell_row(lines[4]);
-            (
-                [
-                    [c0[0], c0[1], c0[2]],
-                    [c1[0], c1[1], c1[2]],
-                    [c2[0], c2[1], c2[2]],
-                ],
-                Pattern {
-                    horizontals: [h0, h1],
-                    verticals: [[v0[0], v0[1]], [v1[0], v1[1]], [v2[0], v2[1]]],
-                },
-            )
-        }
-
         let (cells, input_pattern) = parse_str(input);
         let (_, output_pattern) = parse_str(output);
-
         PatternSolution {
             cells,
             input: input_pattern,
@@ -484,87 +484,62 @@ pub mod test {
 
     #[test]
     fn test_rotate_pattern() {
-        let p = Pattern {
-            horizontals: [
-                [Edge::Any, Edge::Filled, Edge::Any],
-                [Edge::Filled, Edge::Empty, Edge::Filled],
-            ],
-            verticals: [
-                [Edge::Any, Edge::Empty],
-                [Edge::Filled, Edge::Filled],
-                [Edge::Empty, Edge::Any],
-            ],
-        };
+        let (_, p) = parse_str("
+            ***x*
+            *.-.*
+            *|*|*
+            -.x.-
+            *x***
+        ");
         let p_rot = p.rot90();
-        let expected = Pattern {
-            horizontals: [
-                [Edge::Empty, Edge::Filled, Edge::Any],
-                [Edge::Any, Edge::Filled, Edge::Empty],
-            ],
-            verticals: [
-                [Edge::Filled, Edge::Any],
-                [Edge::Empty, Edge::Filled],
-                [Edge::Filled, Edge::Any],
-            ],
-        };
-
-        assert_eq!(p_rot, expected)
+        let (_, expected) = parse_str("
+            *|***
+            x.-.*
+            *x*|*
+            *.-.x
+            *|***
+        ");
+        assert_eq!(p_rot, expected);
     }
 
     #[test]
     fn test_reflect_pattern() {
-        let p = Pattern {
-            horizontals: [
-                [Edge::Any, Edge::Filled, Edge::Empty],
-                [Edge::Filled, Edge::Empty, Edge::Filled],
-            ],
-            verticals: [
-                [Edge::Any, Edge::Empty],
-                [Edge::Filled, Edge::Filled],
-                [Edge::Empty, Edge::Any],
-            ],
-        };
-        let p_rot = p.mirror();
-
-        let expected = Pattern {
-            horizontals: [
-                [Edge::Empty, Edge::Filled, Edge::Any],
-                [Edge::Filled, Edge::Empty, Edge::Filled],
-            ],
-            verticals: [
-                [Edge::Empty, Edge::Any],
-                [Edge::Filled, Edge::Filled],
-                [Edge::Any, Edge::Empty],
-            ],
-        };
-
-        assert_eq!(p_rot, expected)
+        let (_, p) = parse_str("
+            ***x*
+            *.-.x
+            *|*|*
+            -.x.-
+            *x***
+        ");
+        let p_mirror = p.mirror();
+        let (_, expected) = parse_str("
+            *x***
+            x.-.*
+            *|*|*
+            -.x.-
+            ***x*
+        ");
+        assert_eq!(p_mirror, expected);
     }
 
     #[test]
     fn test_matches_cells() {
-        let threes_ortho = PatternSolution {
-            output: Pattern {
-                horizontals: [
-                    [Edge::Any, Edge::Filled, Edge::Any],
-                    [Edge::Any, Edge::Filled, Edge::Any],
-                ],
-                verticals: [
-                    [Edge::Any, Edge::Any],
-                    [Edge::Any, Edge::Any],
-                    [Edge::Any, Edge::Any],
-                ],
-            },
-            input: Pattern {
-                horizontals: [[Edge::Any; 3]; 2],
-                verticals: [[Edge::Any; 2]; 3],
-            },
-            cells: [
-                [Cell::Any, Cell::Three, Cell::Any],
-                [Cell::Any, Cell::Three, Cell::Any],
-                [Cell::Any, Cell::Any, Cell::Any],
-            ],
-        };
+        let threes_ortho = PatternSolution::parse(
+            "
+                **3**
+                *.*.*
+                **3**
+                *.*.*
+                *****
+            ",
+            "
+                *****
+                *.-.*
+                *****
+                *.-.*
+                *****
+            ",
+        );
 
         assert!(threes_ortho.try_match(
             &threes_ortho.cells,
@@ -572,145 +547,92 @@ pub mod test {
             &threes_ortho.input.verticals,
         ));
 
+        let (cells2, _) = parse_str("
+            2*3*1
+            *.*.*
+            **3*0
+            *.*.*
+            B*B*B
+        ");
         assert!(threes_ortho.try_match(
-            &[
-                [Cell::Two, Cell::Three, Cell::One],
-                [Cell::Any, Cell::Three, Cell::Zero],
-                [Cell::OutOfBounds, Cell::OutOfBounds, Cell::OutOfBounds],
-            ],
+            &cells2,
             &threes_ortho.input.horizontals,
             &threes_ortho.input.verticals,
         ));
 
+        let (_, pat3) = parse_str("
+            *x*x*
+            -.-.-
+            *x*x*
+            -.-.-
+            *x*x*
+        ");
         assert!(threes_ortho.try_match(
             &threes_ortho.cells,
-            &[
-                [Edge::Filled, Edge::Filled, Edge::Filled],
-                [Edge::Filled, Edge::Filled, Edge::Filled],
-            ],
-            &[
-                [Edge::Empty, Edge::Empty],
-                [Edge::Empty, Edge::Empty],
-                [Edge::Empty, Edge::Empty],
-            ],
+            &pat3.horizontals,
+            &pat3.verticals,
         ));
     }
 
     #[test]
     fn test_matches_edge_forced_turn() {
-        let threes_ortho = PatternSolution {
-            output: Pattern {
-                horizontals: [
-                    [Edge::Empty, Edge::Filled, Edge::Any],
-                    [Edge::Any, Edge::Any, Edge::Any],
-                ],
-                verticals: [
-                    [Edge::Filled, Edge::Any],
-                    [Edge::Empty, Edge::Any],
-                    [Edge::Any, Edge::Any],
-                ],
-            },
-            input: Pattern {
-                horizontals: [
-                    [Edge::Empty, Edge::Filled, Edge::Any],
-                    [Edge::Any, Edge::Any, Edge::Any],
-                ],
-                verticals: [
-                    [Edge::Any, Edge::Any],
-                    [Edge::Empty, Edge::Any],
-                    [Edge::Any, Edge::Any],
-                ],
-            },
-            cells: [
-                [Cell::Any, Cell::Any, Cell::Any],
-                [Cell::Any, Cell::Any, Cell::Any],
-                [Cell::Any, Cell::Any, Cell::Any],
-            ],
-        };
+        let threes_ortho = PatternSolution::parse(
+            "
+                *****
+                x.-.*
+                *x***
+                *.*.*
+                *****
+            ",
+            "
+                *|***
+                x.-.*
+                *x***
+                *.*.*
+                *****
+            ",
+        );
 
         let rs = threes_ortho.rotations();
 
-        for r in rs.clone() {
-            println!("{r}")
-        }
-
-        let test = PatternSolution {
-            cells: threes_ortho.cells,
-            input: Pattern {
-                horizontals: [
-                    [Edge::OutOfBounds, Edge::OutOfBounds, Edge::OutOfBounds],
-                    [Edge::OutOfBounds, Edge::Filled, Edge::Empty],
-                ],
-                verticals: [
-                    [Edge::OutOfBounds, Edge::OutOfBounds],
-                    [Edge::OutOfBounds, Edge::OutOfBounds],
-                    [Edge::Filled, Edge::Unknown],
-                ],
-            },
-            output: rs[0].output,
-        };
-        println!("test data!:{test}");
-
-        assert!(rs.iter().any(|p| p.try_match(
-            &threes_ortho.cells,
-            &[
-                [Edge::OutOfBounds, Edge::OutOfBounds, Edge::OutOfBounds],
-                [Edge::OutOfBounds, Edge::Filled, Edge::Empty],
-            ],
-            &[
-                [Edge::OutOfBounds, Edge::OutOfBounds],
-                [Edge::OutOfBounds, Edge::OutOfBounds],
-                [Edge::Filled, Edge::Unknown],
-            ],
-        )));
+        let (cells, pat) = parse_str("
+            *%*%*
+            %.%.%
+            *%*%*
+            %.-.x
+            *|*?*
+        ");
+        assert!(rs.iter().any(|p| p.try_match(&cells, &pat.horizontals, &pat.verticals)));
     }
 
     #[test]
     fn test_matches_three_in_corner() {
-        let threes_ortho = PatternSolution {
-            output: Pattern {
-                horizontals: [
-                    [Edge::Any, Edge::Filled, Edge::Any],
-                    [Edge::Any, Edge::Any, Edge::Any],
-                ],
-                verticals: [
-                    [Edge::Any, Edge::Any],
-                    [Edge::Filled, Edge::Any],
-                    [Edge::Any, Edge::Any],
-                ],
-            },
-            input: Pattern {
-                horizontals: [[Edge::Any; 3]; 2],
-                verticals: [[Edge::Any; 2]; 3],
-            },
-            cells: [
-                [Cell::OutOfBounds, Cell::OutOfBounds, Cell::Any],
-                [Cell::OutOfBounds, Cell::Three, Cell::Any],
-                [Cell::Any, Cell::Any, Cell::Any],
-            ],
-        };
+        let threes_ortho = PatternSolution::parse(
+            "
+                B*B**
+                *.*.*
+                B*3**
+                *.*.*
+                *****
+            ",
+            "
+                *****
+                *.-.*
+                *|***
+                *.*.*
+                *****
+            ",
+        );
 
         let rs = threes_ortho.rotations();
 
-        for r in rs.clone() {
-            println!("{r}")
-        }
-
-        assert!(rs.iter().any(|p| p.try_match(
-            &[
-                [Cell::OutOfBounds, Cell::OutOfBounds, Cell::OutOfBounds],
-                [Cell::Any, Cell::Three, Cell::OutOfBounds],
-                [Cell::Any, Cell::Any, Cell::OutOfBounds],
-            ],
-            &[
-                [Edge::OutOfBounds, Edge::OutOfBounds, Edge::OutOfBounds],
-                [Edge::OutOfBounds, Edge::Filled, Edge::Empty],
-            ],
-            &[
-                [Edge::OutOfBounds, Edge::OutOfBounds],
-                [Edge::OutOfBounds, Edge::OutOfBounds],
-                [Edge::Filled, Edge::Unknown],
-            ],
-        )));
+        let (cells, pat) = parse_str("
+            B%B%B
+            %.%.%
+            *%3%B
+            %.-.x
+            *|*?B
+        ");
+        assert!(rs.iter().any(|p| p.try_match(&cells, &pat.horizontals, &pat.verticals)));
     }
 }
