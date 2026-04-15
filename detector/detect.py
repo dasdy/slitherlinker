@@ -11,6 +11,7 @@ from skimage.morphology import remove_small_objects
 import tensorflow as tf
 from tensorflow import keras
 from keras import layers
+import tf_keras as k3
 import itertools
 import matplotlib.pyplot as plt
 
@@ -165,6 +166,7 @@ def get_not_empty_cells(image, x_size, y_size, debug, small_treshold, gray_tresh
 
 
 def get_model():
+    # model = k3.models.load_model('model.hd5')
     model = keras.Sequential(
         [
             keras.Input(shape=(28, 28, 1)),
@@ -178,7 +180,7 @@ def get_model():
         ]
     )
     model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
-    model.load_weights('model.hd5')
+    model.load_weights('model.weights.h5')
     return model
 
 
