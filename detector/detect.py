@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import click
 import cv2
@@ -11,7 +12,6 @@ from skimage.morphology import remove_small_objects
 import tensorflow as tf
 from tensorflow import keras
 from keras import layers
-import tf_keras as k3
 import itertools
 import matplotlib.pyplot as plt
 
@@ -131,7 +131,7 @@ def prepare_digit(cell, cell_w, cell_h, debug, small_treshold, gray_treshold):
     if debug:
         print('bool image:')
         print_img(sub_img.astype(np.uint8) * 255)
-    sub_img = remove_small_objects(~sub_img, min_size=(cell_w * cell_h * small_treshold)) * 255
+    sub_img = remove_small_objects(~sub_img, max_size=(cell_w * cell_h * small_treshold) - 1) * 255
     if np.sum(sub_img) > 0:
         com = center_of_mass(sub_img)
         sub_img = translate_to_com(sub_img, com)
@@ -180,7 +180,9 @@ def get_model():
         ]
     )
     model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
-    model.load_weights('model.weights.h5')
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Skipping variable loading for optimizer")
+        model.load_weights('model.weights.h5')
     return model
 
 
